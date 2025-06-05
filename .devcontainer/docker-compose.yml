@@ -1,0 +1,17 @@
+version: '3'
+services:
+  devcontainer:
+    image: rust-dev:latest
+    network_mode: host
+    privileged: true
+    environment:
+      - CARGO_HOME=/root/.cargo
+      - RTUI_DATA=/workspaces/.data
+      - RTUI_CONFIG=/workspaces/.config
+      # - HTTPS_PROXY=http://192.168.1.22:7890
+    volumes:
+      - ../../.vscode-server:/root/.vscode-server
+      - ../../.cargo:/root/.cargo
+      - ..:/workspaces:cached      
+    working_dir: /workspaces
+    command: sleep infinity
