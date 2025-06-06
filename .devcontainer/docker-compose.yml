@@ -6,9 +6,7 @@ services:
     privileged: true
     environment:
       - CARGO_HOME=/root/.cargo
-      - RTUI_DATA=/workspaces/.data
-      - RTUI_CONFIG=/workspaces/.config
-      # - HTTPS_PROXY=http://192.168.1.22:7890
+      - HTTPS_PROXY=http://192.168.1.75:7890
     volumes:
       - ../../.vscode-server:/root/.vscode-server
       - ../../.cargo:/root/.cargo
