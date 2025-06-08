@@ -6,13 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  build:
-    strategy:
-      fail-fast: true
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
+  release-windows:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
