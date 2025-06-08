@@ -24,7 +24,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     setOpenMobile(false); // Close mobile sidebar
     // For desktop, if sidebar is collapsible, it might also close here
     // For now, just handle mobile sheet
-    router.push(`/${deviceName}`); // 恢复路由跳转，但路径改为 /device/${deviceName}
+    router.push(`/${deviceName}`); // 恢复路由跳转，但路径改为 /${deviceType}/${deviceName}
   };
 
   return (
