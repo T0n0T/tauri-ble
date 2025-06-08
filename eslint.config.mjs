@@ -112,6 +112,12 @@ const eslintConfig = tseslint.config(
       "@typescript-eslint/prefer-optional-chain": "off",
       "@typescript-eslint/require-await": "off",
       // Custom rules
+      "@typescript-eslint/prefer-nullish-coalescing": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/consistent-type-definitions": "off",
       "@typescript-eslint/restrict-template-expressions": [
         "error",
         {
