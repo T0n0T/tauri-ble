@@ -15,7 +15,6 @@ export default function ScanButton({ onScanToggle }: ScanButtonProps) {
     const newState = !isScanning;
     setIsScanning(newState);
     onScanToggle(newState);
-    // startScan((dev: BleDevice[]) => devices = dev, 10000)
   };
 
   return (

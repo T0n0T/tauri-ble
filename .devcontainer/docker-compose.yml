@@ -10,6 +10,8 @@ services:
     volumes:
       - ../../.vscode-server:/root/.vscode-server
       - ../../.cargo:/root/.cargo
-      - ..:/workspaces:cached      
+      - ..:/workspaces:cached
+      - /run/dbus/:/run/dbus/
+      - /run/user/1000:/run/user/1000
     working_dir: /workspaces
     command: sleep infinity
