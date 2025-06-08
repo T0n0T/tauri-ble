@@ -1,5 +1,6 @@
 "use client";
 
+import { BleDevice, startScan, stopScan, getScanningUpdates } from '@mnlphlp/plugin-blec'
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -14,6 +15,7 @@ export default function ScanButton({ onScanToggle }: ScanButtonProps) {
     const newState = !isScanning;
     setIsScanning(newState);
     onScanToggle(newState);
+    // startScan((dev: BleDevice[]) => devices = dev, 10000)
   };
 
   return (
