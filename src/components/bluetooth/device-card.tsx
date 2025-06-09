@@ -30,7 +30,6 @@ export default function DeviceCard({
                     <p className="text-sm text-gray-500">MAC: {macAddress}</p>
                     <p className="text-sm text-gray-500">RSSI: {rssi} dBm</p>
                 </div>
-                {/* Add more details or actions here if needed */}
             </CardContent>
         </Card>
     );

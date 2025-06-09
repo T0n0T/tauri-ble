@@ -1,8 +1,35 @@
+"use client";
+
+import { useState } from "react";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import DeviceListSidebar from "@/components/bluetooth/device-list-sidebar";
+import DeviceDetailsView from "@/components/bluetooth/device-details-view";
+
 export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
-      <h1 className="text-4xl font-bold">欢迎来到蓝牙设备管理系统</h1>
-      <p className="text-lg text-gray-600 mt-4">请从左侧边栏选择一个设备进行管理。</p>
+    <SidebarProvider>
+      <LayoutContent></LayoutContent>
+    </SidebarProvider>
+  );
+}
+
+function LayoutContent() {
+  const { setOpenMobile } = useSidebar();
+  const [selectedDeviceName, setSelectedDeviceName] = useState<string | null>(null);
+
+  const handleDeviceConnected = (deviceName: string) => {
+    setSelectedDeviceName(deviceName);
+    setOpenMobile(false); // Close mobile sidebar
+    // For desktop, if sidebar is collapsible, it might also close here
+    // For now, just handle mobile sheet
+  };
+
+  return (
+    <div className="flex h-screen w-screen">
+      <DeviceListSidebar onDeviceConnected={handleDeviceConnected} />
+      <div className="flex flex-col flex-grow">
+        <DeviceDetailsView deviceName={selectedDeviceName} />
+      </div>
     </div>
   );
 }

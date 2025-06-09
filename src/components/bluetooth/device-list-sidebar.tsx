@@ -59,7 +59,8 @@ export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSideb
       // On successful connection, call onDeviceConnected with the device name
       const connectedDevice = devices.find(d => d.address === deviceAddress);
       if (connectedDevice) {
-        onDeviceConnected(connectedDevice.name || connectedDevice.address); // Use device.name or fallback to address
+        const deviceName = connectedDevice.name || connectedDevice.address;
+        onDeviceConnected(deviceName); // Use device.name or fallback to address
       }
     }, 1000);
   };

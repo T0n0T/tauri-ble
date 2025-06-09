@@ -1,6 +1,5 @@
 "use client";
 
-import { BleDevice, startScan, stopScan, getScanningUpdates } from '@mnlphlp/plugin-blec'
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
