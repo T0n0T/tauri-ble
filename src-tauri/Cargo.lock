@@ -3396,6 +3396,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-bluetooth-tool"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-blec",
+]
+
+[[package]]
 name = "tauri-build"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3456,17 +3467,6 @@ dependencies = [
  "syn 2.0.98",
  "tauri-codegen",
  "tauri-utils",
-]
-
-[[package]]
-name = "tauri-nextjs-template"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-blec",
 ]
 
 [[package]]
