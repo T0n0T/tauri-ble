@@ -7,7 +7,7 @@ on:
 
 jobs:
   release-windows:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container: mingc/android-build-box:latest
     permissions:
       contents: write
@@ -21,12 +21,27 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt update
+          sudo apt install libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            gcc-aarch64-linux-gnu 
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      - name: Install Rust Android targets
+      - name: Install Rust Android targets and aarch64 toolchain
         run: |
           rustup target add aarch64-linux-android
 
