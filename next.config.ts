@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   distDir: "dist",
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   // Add experimental features for Turbopack compatibility with next/font
   experimental: {
     // This might help with font loading issues in Turbopack

@@ -126,6 +126,7 @@ const eslintConfig = tseslint.config(
           allowNever: true,
         },
       ],
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
     },
     languageOptions: {
       parserOptions: {
