@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  release-windows:
+  release-android:
     runs-on: ubuntu-22.04
     container: mingc/android-build-box:latest
     permissions:
