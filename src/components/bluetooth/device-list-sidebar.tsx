@@ -4,65 +4,72 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/ui/sidebar";
 import ScanButton from "./scan-button";
 import DeviceCard from "./device-card";
-import { BleDevice, startScan, stopScan, getScanningUpdates } from '@mnlphlp/plugin-blec';
-
-interface Device extends BleDevice {}
-
+import { BleDevice, startScan, stopScan, getScanningUpdates, connect, disconnect } from '@mnlphlp/plugin-blec';
 interface DeviceListSidebarProps {
   onDeviceConnected: (deviceName: string) => void;
 }
 
 export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSidebarProps) {
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<BleDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [connectedDeviceAddress, setConnectedDeviceAddress] = useState<string | null>(null);
 
   useEffect(() => {
     if (isScanning) {
-      // Start scanning and provide a handler to receive device updates
       startScan((newDevices) => {
         setDevices((prev) => {
           const updatedDevices = [...prev];
           newDevices.forEach((newDevice) => {
-            // Check if device already exists by address
-            if (!updatedDevices.some((d) => d.address === newDevice.address)) {
+            if (!updatedDevices.some((d) => d.address === newDevice.address) && !(newDevice.name && newDevice.name.startsWith("hci0"))) {
               updatedDevices.push(newDevice);
             }
           });
           return updatedDevices;
         });
-      }, 0); // Timeout 0 means scan indefinitely until stopScan is called
-    } else {
-      // Stop scanning when isScanning is false
-      stopScan();
+      }, 0);
     }
-
-    // Cleanup function to stop scan when component unmounts or isScanning changes
     return () => {
-      stopScan();
+      if (connectedDeviceAddress) {
+        disconnect().catch(e => console.error("Error disconnecting on unmount:", e));
+      }
     };
-  }, [isScanning]);
+  }, [isScanning, connectedDeviceAddress]);
 
   const handleScanToggle = async (scanning: boolean) => {
     setIsScanning(scanning);
     if (scanning) {
-      setDevices([]); // Clear devices when starting a new scan
+      setDevices([]);
     }
   };
 
-  const handleDeviceSelect = (deviceAddress: string) => {
-    setSelectedDeviceId(deviceAddress);
-    // Simulate connection success after selection
-    setTimeout(() => {
-      console.log(`Connecting to device: ${deviceAddress}`);
-      // In a real app, this would involve actual Bluetooth connection logic
-      // On successful connection, call onDeviceConnected with the device name
-      const connectedDevice = devices.find(d => d.address === deviceAddress);
-      if (connectedDevice) {
-        const deviceName = connectedDevice.name || connectedDevice.address;
-        onDeviceConnected(deviceName); // Use device.name or fallback to address
+  const handleDeviceSelect = async (deviceAddress: string) => {
+    if (connectedDeviceAddress && connectedDeviceAddress !== deviceAddress) {
+      try {
+        await disconnect();
+        console.log(`Disconnected from previous device: ${connectedDeviceAddress}`);
+      } catch (error) {
+        console.error(`Failed to disconnect from previous device ${connectedDeviceAddress}:`, error);
       }
-    }, 1000);
+    }
+
+    setSelectedDeviceId(deviceAddress);
+    const connectedDevice = devices.find(d => d.address === deviceAddress);
+    if (connectedDevice) {
+      try {
+        await connect(deviceAddress, () => {
+          console.log(`Disconnected from device: ${deviceAddress}`);
+          setConnectedDeviceAddress(null); // Clear connected device on disconnect
+        });
+        console.log(`Connected to device: ${deviceAddress}`);
+        setConnectedDeviceAddress(deviceAddress);
+        const deviceName = connectedDevice.name || connectedDevice.address;
+        onDeviceConnected(deviceName);
+      } catch (error) {
+        console.error(`Failed to connect to device ${deviceAddress}:`, error);
+        setConnectedDeviceAddress(null);
+      }
+    }
   };
 
   return (
@@ -77,7 +84,6 @@ export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSideb
         )}
         {devices.map((device) => (
           <DeviceCard
-            key={device.address}
             deviceName={device.name || "Unknown Device"}
             macAddress={device.address}
             rssi={device.rssi}

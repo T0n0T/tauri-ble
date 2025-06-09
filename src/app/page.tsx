@@ -22,6 +22,7 @@ function LayoutContent() {
     setOpenMobile(false); // Close mobile sidebar
     // For desktop, if sidebar is collapsible, it might also close here
     // For now, just handle mobile sheet
+    
   };
 
   return (
