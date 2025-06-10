@@ -24,28 +24,23 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install ubuntu dependencies
-        run: |
-          sudo apt update
-          sudo apt install libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            gcc-aarch64-linux-gnu 
+      # - name: Install ubuntu dependencies
+      #   run: |
+      #     sudo apt update
+      #     sudo apt install libwebkit2gtk-4.1-dev \
+      #       build-essential \
+      #       curl \
+      #       wget \
+      #       file \
+      #       libxdo-dev \
+      #       libssl-dev \
+      #       libayatana-appindicator3-dev \
+      #       librsvg2-dev
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-
-      - name: Install Rust Android targets
-        run: |
-          rustup target add aarch64-linux-android
 
       - name: Install pnpm
         run: npm install -g pnpm
