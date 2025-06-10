@@ -20,24 +20,6 @@ jobs:
       - name: Set NDK_HOME
         run: echo "NDK_HOME=$ANDROID_HOME/ndk/$(find $ANDROID_HOME/ndk -maxdepth 1 -mindepth 1 -type d -print -quit | xargs basename)" >> $GITHUB_ENV
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      # - name: Install ubuntu dependencies
-      #   run: |
-      #     sudo apt update
-      #     sudo apt install libwebkit2gtk-4.1-dev \
-      #       build-essential \
-      #       curl \
-      #       wget \
-      #       file \
-      #       libxdo-dev \
-      #       libssl-dev \
-      #       libayatana-appindicator3-dev \
-      #       librsvg2-dev
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -53,11 +35,20 @@ jobs:
         run: |
           pnpm tauri android init --ci
 
-      - name: Build Tauri application
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Android application
+        run: |
+          pnpm tauri android build --apk --target aarch64 --ci
+
+      - name: Find APK file
+        id: find_apk
+        run: |
+          APK_PATH=$(find src-tauri/target/aarch64-linux-android/release/bundle/apk -name "*.apk" -print -quit)
+          echo "APK_PATH=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "APK_NAME=$(basename $APK_PATH)" >> $GITHUB_OUTPUT
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: ${{ github.ref_name }}
-          args: android build --apk --ci
+          name: android-apk
+          path: ${{ steps.find_apk.outputs.APK_PATH }}
+
