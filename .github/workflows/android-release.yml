@@ -8,18 +8,13 @@ on:
 jobs:
   release-android:
     runs-on: ubuntu-22.04
-    container: mingc/android-build-box:latest
+    container: reactnativecommunity/react-native-android
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - name: Install ubuntu dependencies
         run: |
