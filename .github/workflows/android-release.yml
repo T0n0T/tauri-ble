@@ -8,18 +8,26 @@ on:
 jobs:
   release-android:
     runs-on: ubuntu-22.04
-    container: reactnativecommunity/react-native-android
+    container: mingc/android-build-box:latest
     permissions:
       contents: write
+
+    env:
+      NDK_HOME="$ANDROID_HOME/ndk/$(ls -1 $ANDROID_HOME/ndk)"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install ubuntu dependencies
         run: |
           sudo apt update
-          sudo apt install -y libwebkit2gtk-4.1-dev \
+          sudo apt install libwebkit2gtk-4.1-dev \
             build-essential \
             curl \
             wget \
@@ -45,6 +53,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Init Android Project
+        run: |
+          pnpm tauri android init --ci
+
       - name: Build Tauri application
         uses: tauri-apps/tauri-action@v0
         env:
@@ -52,4 +64,4 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
-          args: --target aarch64-linux-android
+          args: android build --apk --ci
