@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set NDK_HOME
-        run: echo "NDK_HOME=$ANDROID_HOME/ndk/$(ls -1 $ANDROID_HOME/ndk)" >> $GITHUB_ENV
+        run: echo "NDK_HOME=$ANDROID_HOME/ndk/$(find $ANDROID_HOME/ndk -maxdepth 1 -mindepth 1 -type d -print -quit | xargs basename)" >> $GITHUB_ENV
 
       - name: Install Node.js
         uses: actions/setup-node@v4
