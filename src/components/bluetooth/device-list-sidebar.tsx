@@ -7,9 +7,10 @@ import DeviceCard from "./device-card";
 import { BleDevice, startScan, stopScan, getScanningUpdates, connect, disconnect } from '@mnlphlp/plugin-blec';
 interface DeviceListSidebarProps {
   onDeviceConnected: (deviceName: string) => void;
+  onDeviceDisconnected: (deviceName: string) => void;
 }
 
-export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSidebarProps) {
+export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnected }: DeviceListSidebarProps) {
   const [devices, setDevices] = useState<BleDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -31,7 +32,10 @@ export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSideb
     }
     return () => {
       if (connectedDeviceAddress) {
-        disconnect().catch(e => console.error("Error disconnecting on unmount:", e));
+        const deviceName = devices.find(d => d.address === connectedDeviceAddress)?.name || connectedDeviceAddress;
+        disconnect().then(() => {
+          onDeviceDisconnected(deviceName);
+        }).catch(e => console.error("Error disconnecting on unmount:", e));
       }
     };
   }, [isScanning, connectedDeviceAddress]);
@@ -46,8 +50,10 @@ export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSideb
   const handleDeviceSelect = async (deviceAddress: string) => {
     if (connectedDeviceAddress && connectedDeviceAddress !== deviceAddress) {
       try {
+        const deviceName = devices.find(d => d.address === connectedDeviceAddress)?.name || connectedDeviceAddress;
         await disconnect();
         console.log(`Disconnected from previous device: ${connectedDeviceAddress}`);
+        onDeviceDisconnected(deviceName);
       } catch (error) {
         console.error(`Failed to disconnect from previous device ${connectedDeviceAddress}:`, error);
       }
@@ -60,6 +66,8 @@ export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSideb
         await connect(deviceAddress, () => {
           console.log(`Disconnected from device: ${deviceAddress}`);
           setConnectedDeviceAddress(null); // Clear connected device on disconnect
+          const deviceName = devices.find(d => d.address === deviceAddress)?.name || deviceAddress;
+          onDeviceDisconnected(deviceName);
         });
         console.log(`Connected to device: ${deviceAddress}`);
         setConnectedDeviceAddress(deviceAddress);
@@ -84,6 +92,7 @@ export default function DeviceListSidebar({ onDeviceConnected }: DeviceListSideb
         )}
         {devices.map((device) => (
           <DeviceCard
+            key={device.address}
             deviceName={device.name || "Unknown Device"}
             macAddress={device.address}
             rssi={device.rssi}
