@@ -32,10 +32,7 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
     }
     return () => {
       if (connectedDeviceAddress) {
-        const deviceName = devices.find(d => d.address === connectedDeviceAddress)?.name || connectedDeviceAddress;
-        disconnect().then(() => {
-          onDeviceDisconnected(deviceName);
-        }).catch(e => console.error("Error disconnecting on unmount:", e));
+        disconnect().catch(e => console.error("Error disconnecting on unmount:", e));
       }
     };
   }, [isScanning, connectedDeviceAddress]);
@@ -50,10 +47,8 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
   const handleDeviceSelect = async (deviceAddress: string) => {
     if (connectedDeviceAddress && connectedDeviceAddress !== deviceAddress) {
       try {
-        const deviceName = devices.find(d => d.address === connectedDeviceAddress)?.name || connectedDeviceAddress;
         await disconnect();
         console.log(`Disconnected from previous device: ${connectedDeviceAddress}`);
-        onDeviceDisconnected(deviceName);
       } catch (error) {
         console.error(`Failed to disconnect from previous device ${connectedDeviceAddress}:`, error);
       }
