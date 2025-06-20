@@ -47,8 +47,9 @@ jobs:
           echo "APK_NAME=$(basename $APK_PATH)" >> $GITHUB_OUTPUT
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: softprops/action-gh-release@v2
         with:
-          name: android-apk
-          path: ${{ steps.find_apk.outputs.APK_PATH }}
+          tag_name: ${{ github.ref }}
+          files: ${{ steps.find_apk.outputs.APK_PATH }}
+          name: ${{ steps.find_apk.outputs.APK_NAME }}
 

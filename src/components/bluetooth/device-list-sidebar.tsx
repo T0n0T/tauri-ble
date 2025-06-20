@@ -18,6 +18,7 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
 
   useEffect(() => {
     if (isScanning) {
+      console.log("Starting BLE scan...", isScanning);
       startScan((newDevices) => {
         setDevices((prev) => {
           const updatedDevices = [...prev];
@@ -28,14 +29,11 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
           });
           return updatedDevices;
         });
-      }, 0);
+      }, 0).catch((error) => {
+        console.error("Failed to start scan:", error);
+      });
     }
-    return () => {
-      if (connectedDeviceAddress) {
-        disconnect().catch(e => console.error("Error disconnecting on unmount:", e));
-      }
-    };
-  }, [isScanning, connectedDeviceAddress]);
+  }, [isScanning]);
 
   const handleScanToggle = async (scanning: boolean) => {
     setIsScanning(scanning);

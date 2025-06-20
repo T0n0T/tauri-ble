@@ -25,7 +25,7 @@ function LayoutContent() {
   };
 
   const handleDeviceDisconnected = (deviceName: string) => {
-    toast.info(`已从设备断开连接: ${deviceName}`);
+    toast.warning(`已从设备断开连接: ${deviceName}`);
   };
 
   return (
@@ -36,7 +36,7 @@ function LayoutContent() {
           <DeviceDetailsView deviceName={selectedDeviceName} />
         </div>
       </div>
-      <Toaster />
+      <Toaster position="top-center" />
     </>
   );
 }
