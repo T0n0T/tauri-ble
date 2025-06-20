@@ -3404,6 +3404,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-blec",
+ "uuid",
 ]
 
 [[package]]

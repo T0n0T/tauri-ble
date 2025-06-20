@@ -20,7 +20,7 @@ export default function DeviceCard({
 }: DeviceCardProps) {
     return (
         <Card
-            className={`py-0 cursor-pointer ${isSelected ? "bg-accent" : ""}`}
+            className={`py-0 cursor-pointer ${isSelected ? "bg-accent outline-blue-300 outline-3 outline-offset-1" : ""}`}
             onClick={onSelect}
         >
             <CardContent className="p-2 flex items-center space-x-2 overflow-hidden">

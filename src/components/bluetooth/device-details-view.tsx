@@ -18,7 +18,7 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
         <h1 className="text-lg font-semibold">{deviceName || "未选择设备"}</h1>
         <div></div>
       </header>
-      <main className="flex-grow flex flex-col items-center justify-center">
+      <main className="p-2 flex-grow flex flex-col items-center justify-center">
         {deviceName ?
           (<Tabs defaultValue="command" className="w-full h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-2">
@@ -32,7 +32,7 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
             </TabsContent>
           </Tabs>) : (
             <div className="flex flex-col items-center justify-center flex-grow px-6">
-              <Label className="text-center text-3xl font-bold whitespace-nowrap min-w-0 transform scale-x-90 origin-center">
+              <Label className="text-center text-3xl font-bold whitespace-nowrap min-w-0 transform origin-center">
                 欢迎来到蓝牙设备管理系统
               </Label>
               <Label className="text-lg text-gray-600 mt-4">
