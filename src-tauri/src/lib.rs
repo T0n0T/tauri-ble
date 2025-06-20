@@ -16,19 +16,19 @@ const WRITE_CHARACTERISTIC_UUID: Uuid = uuid!("0000fff2-0000-1000-8000-00805f9b3
 #[tauri::command]
 async fn submit_valve_form(form_data: ValveForm) -> Result<(), String> {
   let payload = serde_json::to_string(&form_data)
-      .inspect(|json| println!("Serialized JSON: {}", json))
-      .map(|json| format!("config_write {}\r\n", json))  // 拼接前缀
-      .map_err(|e| format!("Serialization failed: {}", e))?;
+    .inspect(|json| println!("Serialized JSON: {}", json))
+    .map(|json| format!("config_write {}\r\n", json)) // 拼接前缀
+    .map_err(|e| format!("Serialization failed: {}", e))?;
 
   tauri_plugin_blec::get_handler()
-      .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
-      .send_data(
-          WRITE_CHARACTERISTIC_UUID,
-          payload.as_bytes(),  
-          tauri_plugin_blec::models::WriteType::WithResponse,
-      )
-      .await
-      .map_err(|e| format!("BLE send failed: {:?}", e))?;
+    .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
+    .send_data(
+      WRITE_CHARACTERISTIC_UUID,
+      payload.as_bytes(),
+      tauri_plugin_blec::models::WriteType::WithResponse,
+    )
+    .await
+    .map_err(|e| format!("BLE send failed: {:?}", e))?;
 
   Ok(())
 }
@@ -36,6 +36,7 @@ async fn submit_valve_form(form_data: ValveForm) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
     .invoke_handler(tauri::generate_handler![submit_valve_form])
     .run(tauri::generate_context!())

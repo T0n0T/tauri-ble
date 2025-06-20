@@ -3,6 +3,7 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import DeviceOta from "@/components/bluetooth/device-ota";
 import React from "react";
 import ValveForm from "@/forms/valve-form";
 
@@ -29,6 +30,7 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
               <ValveForm deviceName={deviceName} />
             </TabsContent>
             <TabsContent value="ota" className="flex-grow mt-4">
+              <DeviceOta></DeviceOta>
             </TabsContent>
           </Tabs>) : (
             <div className="flex flex-col items-center justify-center flex-grow px-6">

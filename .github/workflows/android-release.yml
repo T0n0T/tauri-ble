@@ -31,10 +31,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Init Android Project
-        run: |
-          pnpm tauri android init --ci
-
       - name: Build Android application
         run: |
           pnpm tauri android build --apk --target aarch64 --ci

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/ui/sidebar";
 import ScanButton from "./scan-button";
 import DeviceCard from "./device-card";
-import { BleDevice, startScan, stopScan, getScanningUpdates, connect, disconnect } from '@mnlphlp/plugin-blec';
+import { BleDevice, startScan, connect, disconnect } from '@mnlphlp/plugin-blec';
 interface DeviceListSidebarProps {
   onDeviceConnected: (deviceName: string) => void;
   onDeviceDisconnected: (deviceName: string) => void;
