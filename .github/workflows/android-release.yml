@@ -12,7 +12,6 @@ jobs:
     permissions:
       contents: write
 
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,6 +29,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: setup Android signing
+        run: |
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > src-tauri/gen/android/keystore.properties
+          echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> src-tauri/gen/android/keystore.properties
+          base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > $RUNNER_TEMP/keystore.jks
+          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> src-tauri/gen/android/keystore.properties
 
       - name: Build Android application
         run: |
