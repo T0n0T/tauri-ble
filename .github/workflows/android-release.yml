@@ -54,10 +54,8 @@ jobs:
           echo "APK_PATH=$APK_PATH" >> $GITHUB_OUTPUT
           echo "APK_NAME=$(basename $APK_PATH)" >> $GITHUB_OUTPUT
 
-      - name: Upload APK artifact
-        uses: softprops/action-gh-release@v2
+      - uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          files: ${{ steps.find_apk.outputs.APK_PATH }}
-          name: ${{ steps.find_apk.outputs.APK_NAME }}
+          allowUpdates: true
+          artifacts: ${{ steps.find_apk.outputs.APK_PATH }}
 
