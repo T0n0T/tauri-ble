@@ -34,7 +34,7 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
             </TabsContent>
           </Tabs>) : (
             <div className="flex flex-col items-center justify-center flex-grow px-6">
-              <Label className="text-center text-3xl font-bold whitespace-nowrap min-w-0 transform origin-center">
+              <Label className="text-center text-3xl font-bold">
                 欢迎来到蓝牙设备管理系统
               </Label>
               <Label className="text-lg text-gray-600 mt-4">
