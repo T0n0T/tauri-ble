@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import DeviceOta from "@/components/bluetooth/device-ota";
 import React from "react";
 import ValveForm from "@/forms/valve-form";
+import { OtaProgressProvider } from "@/context/OtaProgressContext";
 
 interface DeviceDetailsViewProps {
   deviceName: string | null;
@@ -21,18 +22,20 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
       </header>
       <main className="p-2 flex-grow flex flex-col items-center justify-center">
         {deviceName ?
-          (<Tabs defaultValue="command" className="w-full h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="command">配置</TabsTrigger>
-              <TabsTrigger value="ota">OTA</TabsTrigger>
-            </TabsList>
-            <TabsContent value="command" className="flex-grow mt-4">
-              <ValveForm deviceName={deviceName} />
-            </TabsContent>
-            <TabsContent value="ota" className="flex-grow mt-4">
-              <DeviceOta></DeviceOta>
-            </TabsContent>
-          </Tabs>) : (
+          (<OtaProgressProvider>
+            <Tabs defaultValue="command" className="w-full h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="command">配置</TabsTrigger>
+                <TabsTrigger value="ota">OTA</TabsTrigger>
+              </TabsList>
+              <TabsContent value="command" className="flex-grow mt-4">
+                <ValveForm deviceName={deviceName} />
+              </TabsContent>
+              <TabsContent value="ota" className="flex-grow mt-4">
+                <DeviceOta></DeviceOta>
+              </TabsContent>
+            </Tabs>
+          </OtaProgressProvider>) : (
             <div className="flex flex-col items-center justify-center flex-grow px-6">
               <Label className="text-center text-3xl font-bold">
                 欢迎来到蓝牙设备管理系统

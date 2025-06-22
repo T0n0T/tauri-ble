@@ -1,7 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 use serde::{Deserialize, Serialize};
-use uuid::{Uuid, uuid};
+
+mod transfer;
+mod ota;
+use ota::{Ota, sample::SampleOta};
+use transfer::{Transfer, ble::BleTransfer};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ValveForm {
@@ -10,9 +14,6 @@ pub struct ValveForm {
   dir: bool,
 }
 
-const READ_CHARACTERISTIC_UUID: Uuid = uuid!("0000fff1-0000-1000-8000-00805f9b34fb");
-const WRITE_CHARACTERISTIC_UUID: Uuid = uuid!("0000fff2-0000-1000-8000-00805f9b34fb");
-
 #[tauri::command]
 async fn submit_valve_form(form_data: ValveForm) -> Result<(), String> {
   let payload = serde_json::to_string(&form_data)
@@ -20,17 +21,15 @@ async fn submit_valve_form(form_data: ValveForm) -> Result<(), String> {
     .map(|json| format!("config_write {}\r\n", json)) // 拼接前缀
     .map_err(|e| format!("Serialization failed: {}", e))?;
 
-  tauri_plugin_blec::get_handler()
-    .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
-    .send_data(
-      WRITE_CHARACTERISTIC_UUID,
-      payload.as_bytes(),
-      tauri_plugin_blec::models::WriteType::WithResponse,
-    )
-    .await
-    .map_err(|e| format!("BLE send failed: {:?}", e))?;
+  let ble_transfer = BleTransfer::new();
+  ble_transfer.send_data(payload.as_bytes()).await
+}
 
-  Ok(())
+#[tauri::command]
+async fn start_valve_ota(app_handle: tauri::AppHandle, file_path: String) -> Result<(), String> {
+    let ota_impl = SampleOta::new();
+    let ble_transfer = BleTransfer::new();
+    ota_impl.start_ota(app_handle, file_path, ble_transfer).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,7 +37,7 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
-    .invoke_handler(tauri::generate_handler![submit_valve_form])
+    .invoke_handler(tauri::generate_handler![submit_valve_form, start_valve_ota])
     .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .expect("error while running tauri application"); 
 }

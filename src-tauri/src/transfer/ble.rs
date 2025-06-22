@@ -1,0 +1,54 @@
+use async_trait::async_trait;
+use uuid::Uuid;
+use std::sync::Arc;
+use tauri_plugin_blec::models::WriteType;
+
+use super::Transfer;
+
+const READ_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000fff1-0000-1000-8000-00805f9b34fb");
+const WRITE_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000fff2-0000-1000-8000-00805f9b34fb");
+
+pub struct BleTransfer;
+
+impl BleTransfer {
+    pub fn new() -> Self {
+        BleTransfer
+    }
+}
+
+#[async_trait]
+impl Transfer for BleTransfer {
+    async fn send_data(&self, data: &[u8]) -> Result<(), String> {
+        tauri_plugin_blec::get_handler()
+            .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
+            .send_data(
+                WRITE_CHARACTERISTIC_UUID,
+                data,
+                WriteType::WithResponse,
+            )
+            .await
+            .map_err(|e| format!("BLE send failed: {:?}", e))?;
+        Ok(())
+    }
+
+    async fn receive_data(&self) -> Result<Vec<u8>, String> {
+        // BLE receive logic would go here. For now, returning an empty vector.
+        // In a real scenario, this would involve listening for notifications/indications
+        // on READ_CHARACTERISTIC_UUID.
+        Ok(Vec::new())
+    }
+
+
+    async fn notify(&self, callback:Arc<dyn Fn(Vec<u8>) + Send + Sync + 'static>) -> Result<(), String> {
+        tauri_plugin_blec::get_handler()
+            .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
+            .subscribe(
+                READ_CHARACTERISTIC_UUID,
+                move |data| {
+                    callback(data);
+                },
+            ).await
+            .map_err(|e| format!("BLE subscribe failed: {:?}", e))?;
+        Ok(())
+    }
+}
