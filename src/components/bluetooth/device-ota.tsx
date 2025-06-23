@@ -1,14 +1,14 @@
 "use client";
 import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from "@tauri-apps/api/event";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { invoke } from '@tauri-apps/api/core';
-import Image from "next/image";
-import { useEffect } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { Progress } from "@/components/ui/progress";
 import { useOtaProgress } from "@/context/OtaProgressContext";
 import { toast } from 'sonner';
+import { useEffect } from "react";
+import Image from "next/image";
 
 
 export default function DeviceOta() {

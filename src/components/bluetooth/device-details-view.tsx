@@ -3,10 +3,11 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { OtaProgressProvider } from "@/context/OtaProgressContext";
 import DeviceOta from "@/components/bluetooth/device-ota";
+import DeviceInfo from "@/components/bluetooth/device-info";
 import React from "react";
 import ValveForm from "@/forms/valve-form";
-import { OtaProgressProvider } from "@/context/OtaProgressContext";
 
 interface DeviceDetailsViewProps {
   deviceName: string | null;
@@ -27,12 +28,16 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="command">配置</TabsTrigger>
                 <TabsTrigger value="ota">OTA</TabsTrigger>
+                <TabsTrigger value="info">实时数据</TabsTrigger>
               </TabsList>
               <TabsContent value="command" className="flex-grow mt-4">
                 <ValveForm deviceName={deviceName} />
               </TabsContent>
               <TabsContent value="ota" className="flex-grow mt-4">
                 <DeviceOta></DeviceOta>
+              </TabsContent>
+              <TabsContent value="info" className="flex-grow mt-4">
+                <DeviceInfo></DeviceInfo>
               </TabsContent>
             </Tabs>
           </OtaProgressProvider>) : (
