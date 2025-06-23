@@ -3,55 +3,52 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
-
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator";
+import Image from "next/image";
 interface ValveInfo {
     total_ticks: number;
     position: number;
     rotation: number;
 }
 
-export default function DeviceInfo() {
+interface DeviceInfoProps {
+    activeTab: string;
+}
+
+export default function DeviceInfo({ activeTab }: DeviceInfoProps) {
     const [valveInfo, setValveInfo] = useState<ValveInfo>({
         total_ticks: 0,
         position: 0,
         rotation: 0,
     });
 
+    // 类似 Vue 的 mounted + updated（依赖 count）
     useEffect(() => {
-        let unlisten: (() => void) | undefined;
+        console.log('组件挂载');
 
-        const setup = async () => {
-            try {
-                await invoke('start_valve_info');
-                console.log('start_valve_info invoked');
-
-                unlisten = await listen<ValveInfo>('valve_info_update', (event) => {
-                    console.log('Received valve_info_update:', event.payload);
-                    setValveInfo(event.payload);
-                });
-            } catch (error) {
-                console.error('Error in DeviceInfo useEffect setup:', error);
-            }
-        };
-
-        setup();
-
+        // 类似 Vue 的 beforeDestroy
         return () => {
-            if (unlisten) {
-                unlisten();
-                console.log('unlisten called');
-            }
-            invoke('stop_valve_info')
-                .then(() => console.log('stop_valve_info invoked'))
-                .catch((error) => console.error('Error invoking stop_valve_info:', error));
+            console.log('组件销毁前清理');
         };
-    }, []);
+    }, []); // 依赖项为 count
 
     return (
-        <div>
-            <p>Total Ticks: {valveInfo.total_ticks}</p>
-            <p>Position: {valveInfo.position}</p>
-            <p>Rotation: {valveInfo.rotation}</p>
+        <div className="flex flex-row items-center justify-around w-full h-full p-4 space-x-1">
+            <div className="flex flex-col items-center">
+                <p className="text-3xl font-semibold">角度</p>
+                <div className="text-blue-400">{valveInfo.total_ticks}</div>
+            </div>
+            <Separator orientation="vertical" />
+            <div className="flex flex-col items-center">
+                <p className="text-4xl font-semibold">圈数</p>
+                <div className=" text-blue-400">{valveInfo.rotation}</div>
+            </div>
+            <Separator orientation="vertical" />
+            <div className="flex flex-col items-center">
+                <p className="text-3xl font-semibold">位置</p>
+                <div className="text-blue-400">{valveInfo.position}</div>
+            </div>
         </div>
     )
 }

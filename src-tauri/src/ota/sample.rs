@@ -7,7 +7,7 @@ use tauri::Emitter;
 use tokio::{
   fs,
   sync::watch,
-  time::{Instant, timeout},
+  time::Instant,
 };
 
 pub const DFU_PAGE_LEN: usize = 2048;

@@ -1,12 +1,14 @@
 "use client";
 
+import { invoke } from '@tauri-apps/api/core';
+import Image from "next/image";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { OtaProgressProvider } from "@/context/OtaProgressContext";
 import DeviceOta from "@/components/bluetooth/device-ota";
 import DeviceInfo from "@/components/bluetooth/device-info";
-import React from "react";
+import React, { useState } from "react";
 import ValveForm from "@/forms/valve-form";
 
 interface DeviceDetailsViewProps {
@@ -14,6 +16,8 @@ interface DeviceDetailsViewProps {
 }
 
 export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps) {
+  const [activeTab, setActiveTab] = useState("command");
+
   return (
     <>
       <header className="flex items-center justify-between p-4 border-b">
@@ -21,10 +25,10 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
         <h1 className="text-lg font-semibold">{deviceName || "未选择设备"}</h1>
         <div></div>
       </header>
-      <main className="p-2 flex-grow flex flex-col items-center justify-center">
+      <main className="p-2 flex-grow flex flex-col items-center justify-center relative">
         {deviceName ?
           (<OtaProgressProvider>
-            <Tabs defaultValue="command" className="w-full h-full flex flex-col">
+            <Tabs defaultValue="command" value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="command">配置</TabsTrigger>
                 <TabsTrigger value="ota">OTA</TabsTrigger>
@@ -37,9 +41,25 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
                 <DeviceOta></DeviceOta>
               </TabsContent>
               <TabsContent value="info" className="flex-grow mt-4">
-                <DeviceInfo></DeviceInfo>
+                <DeviceInfo activeTab={activeTab}></DeviceInfo>
               </TabsContent>
             </Tabs>
+            <button
+              onClick={() => {
+                invoke('reboot_valve')
+                  .then(() => console.log('reboot_valve invoked'))
+                  .catch((error) => console.error('Error invoking reboot_valve:', error));
+              }}
+              className="absolute bottom-6 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg"
+            >
+              <Image
+                src="/reset.svg"
+                alt="重启设备"
+                width={24}
+                height={24}
+                priority
+              />
+            </button>
           </OtaProgressProvider>) : (
             <div className="flex flex-col items-center justify-center flex-grow px-6">
               <Label className="text-center text-3xl font-bold">

@@ -1,9 +1,10 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::Emitter;
 
-mod transfer;
 mod ota;
+mod transfer;
 use ota::{Ota, sample::SampleOta};
 use transfer::{Transfer, ble::BleTransfer};
 
@@ -12,6 +13,13 @@ pub struct ValveForm {
   model: String,
   count: u32,
   dir: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValveVal {
+  total_ticks: i32,
+  position: u32,
+  rotation: i32,
 }
 
 #[tauri::command]
@@ -26,10 +34,55 @@ async fn submit_valve_form(form_data: ValveForm) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn start_valve_info(app_handle: tauri::AppHandle) -> Result<(), String> {
+  let ble_transfer = BleTransfer::new();
+  ble_transfer
+    .notify(
+      Arc::new(move |data: Vec<u8>| {
+        println!("Received data: {:?}", String::from_utf8_lossy(&data));
+        let valve_info: ValveVal = match serde_json::from_slice(&data) {
+          Ok(info) => info,
+          Err(e) => {
+            eprintln!("Failed to parse valve info: {}", e);
+            return; // or handle the error as needed
+          }
+        };
+        if let Err(e) = app_handle.emit("valve_info_update", valve_info) {
+          eprintln!("Failed to emit valve info: {}", e);
+        }
+      }),
+      true,
+    )
+    .await
+    .map_err(|e| format!("Failed to start valve info: {}", e))?;
+
+  
+  ble_transfer
+    .send_data("valve_info 1\r\n".as_bytes())
+    .await
+}
+
+#[tauri::command]
+async fn stop_valve_info() -> Result<(), String> {
+  let ble_transfer = BleTransfer::new();
+  ble_transfer
+  .send_data("valve_info 0\r\n".as_bytes())
+  .await
+}
+
+#[tauri::command]
+async fn reboot_valve() -> Result<(), String> {
+  let ble_transfer = BleTransfer::new();
+  ble_transfer.send_data("reboot\r\n".as_bytes()).await
+}
+
+#[tauri::command]
 async fn start_valve_ota(app_handle: tauri::AppHandle, file_path: String) -> Result<(), String> {
-    let ota_impl = SampleOta::new();
-    let ble_transfer = BleTransfer::new();
-    ota_impl.start_ota(app_handle, file_path, ble_transfer).await
+  let ota_impl = SampleOta::new();
+  let ble_transfer = BleTransfer::new();
+  ota_impl
+    .start_ota(app_handle, file_path, ble_transfer)
+    .await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -37,7 +90,13 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
-    .invoke_handler(tauri::generate_handler![submit_valve_form, start_valve_ota])
+    .invoke_handler(tauri::generate_handler![
+      submit_valve_form,
+      start_valve_info,
+      stop_valve_info,
+      reboot_valve,
+      start_valve_ota
+    ])
     .run(tauri::generate_context!())
-    .expect("error while running tauri application"); 
+    .expect("error while running tauri application");
 }
