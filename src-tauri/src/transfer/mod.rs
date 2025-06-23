@@ -5,7 +5,7 @@ use std::sync::Arc;
 pub trait Transfer {
     async fn send_data(&self, data: &[u8]) -> Result<(), String>;
     async fn receive_data(&self) -> Result<Vec<u8>, String>;
-    async fn notify(&self, callback: Arc<dyn Fn(Vec<u8>) + Send + Sync + 'static>) -> Result<(), String>;
+    async fn notify(&self, callback: Arc<dyn Fn(Vec<u8>) + Send + Sync + 'static>, enable: bool) -> Result<(), String>;
 }
 
 pub mod ble;
