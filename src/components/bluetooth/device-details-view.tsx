@@ -25,7 +25,7 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
         {deviceName ?
           (<OtaProgressProvider>
             <Tabs defaultValue="command" className="w-full h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="command">配置</TabsTrigger>
                 <TabsTrigger value="ota">OTA</TabsTrigger>
                 <TabsTrigger value="info">实时数据</TabsTrigger>
