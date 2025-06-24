@@ -65,6 +65,7 @@ async fn start_valve_info(app_handle: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn stop_valve_info() -> Result<(), String> {
   let ble_transfer = BleTransfer::new();
+  ble_transfer.notify(Arc::new(|_| {}), false).await?;
   ble_transfer
   .send_data("valve_info 0\r\n".as_bytes())
   .await
