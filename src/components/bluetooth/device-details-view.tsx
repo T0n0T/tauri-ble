@@ -8,16 +8,14 @@ import { Label } from "@/components/ui/label";
 import { OtaProgressProvider } from "@/context/OtaProgressContext";
 import DeviceOta from "@/components/bluetooth/device-ota";
 import DeviceInfo from "@/components/bluetooth/device-info";
-import React, { useState } from "react";
 import ValveForm from "@/forms/valve-form";
+import { toast } from 'sonner';
 
 interface DeviceDetailsViewProps {
   deviceName: string | null;
 }
 
 export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps) {
-  const [activeTab, setActiveTab] = useState("command");
-
   return (
     <>
       <header className="flex items-center justify-between p-4 border-b">
@@ -28,7 +26,7 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
       <main className="p-2 flex-grow flex flex-col items-center justify-center relative">
         {deviceName ?
           (<OtaProgressProvider>
-            <Tabs defaultValue="command" value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
+            <Tabs defaultValue="command" className="w-full h-full flex flex-col">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="command">配置</TabsTrigger>
                 <TabsTrigger value="ota">OTA</TabsTrigger>
@@ -41,14 +39,20 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
                 <DeviceOta></DeviceOta>
               </TabsContent>
               <TabsContent value="info" className="flex-grow mt-4">
-                <DeviceInfo activeTab={activeTab}></DeviceInfo>
+                <DeviceInfo></DeviceInfo>
               </TabsContent>
             </Tabs>
             <button
               onClick={() => {
                 invoke('reboot_valve')
-                  .then(() => console.log('reboot_valve invoked'))
-                  .catch((error) => console.error('Error invoking reboot_valve:', error));
+                  .then(() => {
+                    console.log('reboot_valve invoked');
+                    toast.success('设备重启命令已发送，请稍候');
+                  })
+                  .catch((error) => {
+                    console.error('Error invoking reboot_valve:', error);
+                    toast.error('发送设备重启命令失败，请稍后重试');
+                  });
               }}
               className="absolute bottom-6 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg"
             >

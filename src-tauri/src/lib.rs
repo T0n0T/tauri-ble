@@ -15,11 +15,13 @@ pub struct ValveForm {
   dir: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+use bytemuck::{Pod, Zeroable};
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable, Serialize)]
 pub struct ValveVal {
   total_ticks: i32,
-  position: u32,
-  rotation: i32,
+  position: i32,
 }
 
 #[tauri::command]
@@ -39,15 +41,13 @@ async fn start_valve_info(app_handle: tauri::AppHandle) -> Result<(), String> {
   ble_transfer
     .notify(
       Arc::new(move |data: Vec<u8>| {
-        println!("Received data: {:?}", String::from_utf8_lossy(&data));
-        let valve_info: ValveVal = match serde_json::from_slice(&data) {
-          Ok(info) => info,
-          Err(e) => {
-            eprintln!("Failed to parse valve info: {}", e);
-            return; // or handle the error as needed
-          }
-        };
-        if let Err(e) = app_handle.emit("valve_info_update", valve_info) {
+        if data.len() != std::mem::size_of::<ValveVal>() {
+          eprintln!("Received data length mismatch. Expected {}, got {}", std::mem::size_of::<ValveVal>(), data.len());
+          return;
+        }
+        let valve_info: ValveVal = *bytemuck::from_bytes::<ValveVal>(&data);
+        println!("Valve Info: {:?}", valve_info);
+        if let Err(e) = app_handle.emit("valve_info", valve_info) {
           eprintln!("Failed to emit valve info: {}", e);
         }
       }),
