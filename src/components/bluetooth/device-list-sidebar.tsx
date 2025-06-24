@@ -23,7 +23,10 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
         setDevices((prev) => {
           const updatedDevices = [...prev];
           newDevices.forEach((newDevice) => {
-            if (!updatedDevices.some((d) => d.address === newDevice.address) && !(newDevice.name && newDevice.name.startsWith("hci0"))) {
+            if (!updatedDevices.some((d) => d.address === newDevice.address)
+              && !(newDevice.name && newDevice.name.startsWith("hci0"))
+              && !(newDevice.name && newDevice.name.startsWith("Unknown"))
+            ) {
               updatedDevices.push(newDevice);
             }
           });
