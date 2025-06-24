@@ -24,7 +24,7 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
           const updatedDevices = [...prev];
           newDevices.forEach((newDevice) => {
             if (!updatedDevices.some((d) => d.address === newDevice.address)
-              && newDevice.name.startsWith("Alex") // Filter out devices with name "BLEC"
+              && !(newDevice.name && newDevice.name.startsWith("hci")) // Filter out devices with name "BLEC"
             ) {
               updatedDevices.push(newDevice);
             }
