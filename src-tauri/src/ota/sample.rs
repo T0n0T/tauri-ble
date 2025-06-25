@@ -131,10 +131,10 @@ impl Ota for SampleOta {
     loop {
       let mcu_response_state = *mcu_state_receiver_clone.borrow();
 
-      // if last_state_change.elapsed() > Duration::from_secs(10) {
-      //   println!("OTA process timed out in state: {:?}", current_state);
-      //   current_state = DFUState::Fault;
-      // }
+      if last_state_change.elapsed() > Duration::from_secs(10) {
+        println!("OTA process timed out in state: {:?}", current_state);
+        current_state = DFUState::Fault;
+      }
 
       if current_state != DFUState::Start
         && current_state != DFUState::Complete
@@ -254,7 +254,7 @@ impl Ota for SampleOta {
           break;
         }
       }
-      tokio::time::sleep(Duration::from_millis(20)).await; // 避免忙循环，等待MCU响应
+      tokio::time::sleep(Duration::from_millis(5)).await; // 避免忙循环，等待MCU响应
     }
     transfer.notify(Arc::new(|_| {}), false).await?; // 停止通知
     Ok(())
