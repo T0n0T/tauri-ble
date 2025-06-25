@@ -131,6 +131,11 @@ impl Ota for SampleOta {
     loop {
       let mcu_response_state = *mcu_state_receiver_clone.borrow();
       
+      if last_state_change.elapsed() > Duration::from_secs(10) {
+        println!("OTA process timed out in state: {:?}", current_state);
+        current_state = DFUState::Fault;
+      } 
+
       // 检查是否超时
       if current_state != DFUState::Start
       && current_state != DFUState::Complete
@@ -141,10 +146,6 @@ impl Ota for SampleOta {
           continue;
         }
         last_mcu_repsonse_state = mcu_response_state; // 确保在每次循环结束时更新状态
-        if last_state_change.elapsed() > Duration::from_secs(10) {
-          println!("OTA process timed out in state: {:?}", current_state);
-          current_state = DFUState::Fault;
-        } 
       }
       if mcu_response_state == McuDfuState::FAULT {
           current_state = DFUState::Fault;
@@ -152,7 +153,7 @@ impl Ota for SampleOta {
       match current_state {
         DFUState::Start => {
           println!("State: Start -> Sending OTA command");
-          transfer.send_data("start_ota\r\n".as_bytes()).await?;
+          transfer.send_data("update\r\n".as_bytes()).await?;
           current_state = DFUState::SendPreamble;
           last_state_change = Instant::now();
         }
@@ -183,7 +184,7 @@ impl Ota for SampleOta {
             // 模拟块头数据，实际应从固件文件中解析
             let block_header = FirmwareBlockHeader {
               signature: [0u8; 64],            // 示例签名
-              block_size: DFU_PAGE_LEN as u32, // 示例块大小
+              block_size: (file_data.len() - current_block_index * DFU_PAGE_LEN).min(DFU_PAGE_LEN) as u32, // 实际块大小
             };
             let block_header_bytes = block_header.to_bytes();
             transfer.send_data(&block_header_bytes).await?;
@@ -218,8 +219,8 @@ impl Ota for SampleOta {
             );
             last_state_change = Instant::now();
           } else if mcu_response_state == McuDfuState::Write {
-            current_block_index += 1;
-            if current_block_index < total_blocks {
+            if current_block_index < total_blocks - 1 {
+              current_block_index += 1;
               let progress_percentage =
                 ((current_block_index as f64 / total_blocks as f64) * 100.0) as u32;
               app_handle
