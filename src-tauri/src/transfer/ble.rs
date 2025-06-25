@@ -10,6 +10,8 @@ const WRITE_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000ffe2-0000-1000-8000-008
 
 pub struct BleTransfer;
 
+const BLE_MTU: usize = 247 - 3;
+
 impl BleTransfer {
   pub fn new() -> Self {
     BleTransfer
@@ -19,13 +21,31 @@ impl BleTransfer {
 #[async_trait]
 impl Transfer for BleTransfer {
   async fn send_data(&self, data: &[u8]) -> Result<(), String> {
-    tauri_plugin_blec::get_handler()
-      .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
-      .send_data(WRITE_CHARACTERISTIC_UUID, data, WriteType::WithResponse)
-      .await
-      .map_err(|e| format!("BLE send failed: {:?}", e))?;
+    let handler = tauri_plugin_blec::get_handler()
+        .map_err(|e| format!("BLE handler unavailable: {:?}", e))?;
+
+    // 如果数据小于等于 MTU，直接发送
+    if data.len() <= BLE_MTU {
+        handler
+            .send_data(WRITE_CHARACTERISTIC_UUID, data, WriteType::WithResponse)
+            .await
+            .map_err(|e| format!("BLE send failed: {:?}", e))?;
+        return Ok(());
+    }
+
+    // 数据超过 MTU，分包发送
+    for chunk in data.chunks(BLE_MTU) {
+        handler
+            .send_data(WRITE_CHARACTERISTIC_UUID, chunk, WriteType::WithoutResponse)
+            .await
+            .map_err(|e| format!("BLE chunk send failed: {:?}", e))?;
+        
+        // 可选的延迟（避免对方处理不过来）
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+
     Ok(())
-  }
+}
 
   async fn receive_data(&self) -> Result<Vec<u8>, String> {
     // BLE receive logic would go here. For now, returning an empty vector.

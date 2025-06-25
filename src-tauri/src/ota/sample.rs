@@ -4,14 +4,11 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
-use tokio::{
-  fs,
-  sync::watch,
-  time::Instant,
-};
+use tokio::{fs, sync::watch, time::Instant};
 
 pub const DFU_PAGE_LEN: usize = 2048;
 pub const DFU_PREAMBLE: [u8; 4] = [0xAA, 0x55, 0xAA, 0x55];
+pub const DFU_ACK_PATTERN: u32 = 0x12345678; // 示例ACK模式，实际应根据MCU协议定义
 
 // DFU状态枚举，对应Mermaid图
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -108,53 +105,57 @@ impl Ota for SampleOta {
 
     // 设置notify回调
     transfer
-      .notify(Arc::new(move |data: Vec<u8>| {
-        if let Some(&state_byte) = data.first() {
-          if let Ok(mcu_state) = McuDfuState::try_from(state_byte) {
-            let _ = mcu_state_sender_clone.send(mcu_state);
-            println!("Received MCU state: {:?}", mcu_state);
+      .notify(
+        Arc::new(move |data: Vec<u8>| {
+          if let Some(&state_byte) = data.first() {
+            if let Ok(mcu_state) = McuDfuState::try_from(state_byte) {
+              let _ = mcu_state_sender_clone.send(mcu_state);
+              println!("Received MCU state: {:?}", mcu_state);
+            } else {
+              println!("Failed to parse MCU state byte: {}", state_byte);
+            }
           } else {
-            println!("Failed to parse MCU state byte: {}", state_byte);
+            println!("Received empty data from MCU notify.");
           }
-        } else {
-          println!("Received empty data from MCU notify.");
-        }
-      }), true)
+        }),
+        true,
+      )
       .await?;
 
     let mut current_state = DFUState::Start;
     let mut current_block_index = 0;
     let mut last_state_change = Instant::now();
-    let mut last_mcu_repsonse_state = McuDfuState::Idle; // 初始MCU状态
+    let mut last_mcu_response_state = McuDfuState::Idle; // 初始MCU状态
     let total_blocks = (file_data.len() + DFU_PAGE_LEN - 1) / DFU_PAGE_LEN;
 
     loop {
       let mcu_response_state = *mcu_state_receiver_clone.borrow();
-      
-      if last_state_change.elapsed() > Duration::from_secs(10) {
-        println!("OTA process timed out in state: {:?}", current_state);
-        current_state = DFUState::Fault;
-      } 
 
-      // 检查是否超时
+      // if last_state_change.elapsed() > Duration::from_secs(10) {
+      //   println!("OTA process timed out in state: {:?}", current_state);
+      //   current_state = DFUState::Fault;
+      // }
+
       if current_state != DFUState::Start
-      && current_state != DFUState::Complete
-      && current_state != DFUState::Fault
+        && current_state != DFUState::Complete
+        && current_state != DFUState::Fault
       {
-        if mcu_response_state == last_mcu_repsonse_state && mcu_response_state != McuDfuState::Idle {
+        if mcu_response_state == last_mcu_response_state && mcu_response_state != McuDfuState::Idle
+        {
           tokio::time::sleep(Duration::from_millis(10)).await;
           continue;
         }
-        last_mcu_repsonse_state = mcu_response_state; // 确保在每次循环结束时更新状态
+        last_mcu_response_state = mcu_response_state;
       }
       if mcu_response_state == McuDfuState::FAULT {
-          current_state = DFUState::Fault;
+        current_state = DFUState::Fault;
       }
       match current_state {
         DFUState::Start => {
           println!("State: Start -> Sending OTA command");
           transfer.send_data("update\r\n".as_bytes()).await?;
           current_state = DFUState::SendPreamble;
+          tokio::time::sleep(Duration::from_secs(1)).await;
           last_state_change = Instant::now();
         }
         DFUState::SendPreamble => {
@@ -167,6 +168,7 @@ impl Ota for SampleOta {
         }
         DFUState::SendTotalBlocks => {
           if mcu_response_state == McuDfuState::Prepare {
+            transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
             println!("State: SendTotalBlocks -> MCU Ready for Total Blocks");
             let total_blocks_bytes = (total_blocks as u32).to_le_bytes();
             transfer.send_data(&total_blocks_bytes).await?;
@@ -180,11 +182,13 @@ impl Ota for SampleOta {
         }
         DFUState::SendBlockHeader => {
           if mcu_response_state == McuDfuState::Header {
+            transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
             println!("State: SendBlockHeader -> MCU Ready for Block Header");
             // 模拟块头数据，实际应从固件文件中解析
             let block_header = FirmwareBlockHeader {
-              signature: [0u8; 64],            // 示例签名
-              block_size: (file_data.len() - current_block_index * DFU_PAGE_LEN).min(DFU_PAGE_LEN) as u32, // 实际块大小
+              signature: [0u8; 64], // 示例签名
+              block_size: (file_data.len() - current_block_index * DFU_PAGE_LEN).min(DFU_PAGE_LEN)
+                as u32, // 实际块大小
             };
             let block_header_bytes = block_header.to_bytes();
             transfer.send_data(&block_header_bytes).await?;
@@ -198,6 +202,7 @@ impl Ota for SampleOta {
         }
         DFUState::SendBlockData => {
           if mcu_response_state == McuDfuState::Data {
+            transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
             println!("State: SendBlockData -> MCU Ready for Block Data");
             let start = current_block_index * DFU_PAGE_LEN;
             let end = (start + DFU_PAGE_LEN).min(file_data.len());
@@ -213,12 +218,14 @@ impl Ota for SampleOta {
         }
         DFUState::WaitVerify => {
           if mcu_response_state == McuDfuState::Verify {
+            transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
             println!(
               "State: WAIT_VERIFY -> MCU Verify Block {}",
-              current_block_index              
+              current_block_index
             );
             last_state_change = Instant::now();
           } else if mcu_response_state == McuDfuState::Write {
+            transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
             if current_block_index < total_blocks - 1 {
               current_block_index += 1;
               let progress_percentage =
@@ -230,6 +237,7 @@ impl Ota for SampleOta {
               last_state_change = Instant::now();
             }
           } else if mcu_response_state == McuDfuState::Final {
+            transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
             current_state = DFUState::Complete;
             last_state_change = Instant::now();
           }
@@ -246,7 +254,7 @@ impl Ota for SampleOta {
           break;
         }
       }
-      tokio::time::sleep(Duration::from_millis(10)).await; // 避免忙循环，等待MCU响应
+      tokio::time::sleep(Duration::from_millis(20)).await; // 避免忙循环，等待MCU响应
     }
     transfer.notify(Arc::new(|_| {}), false).await?; // 停止通知
     Ok(())
