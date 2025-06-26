@@ -8,70 +8,74 @@ use super::Transfer;
 const READ_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000ffe1-0000-1000-8000-00805f9b34fb");
 const WRITE_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000ffe2-0000-1000-8000-00805f9b34fb");
 
-pub struct BleTransfer;
-
 const BLE_MTU: usize = 247 - 3;
 
-impl BleTransfer {
+pub struct BleTransfer<'a> {
+  handler: &'a tauri_plugin_blec::Handler,
+  mtu: usize,
+}
+
+impl<'a> BleTransfer<'a> {
   pub fn new() -> Self {
-    BleTransfer
+    let handler = tauri_plugin_blec::get_handler().expect("BLE handler unavailable");
+    BleTransfer {
+      handler,
+      mtu: BLE_MTU,
+    }
   }
 }
 
 #[async_trait]
-impl Transfer for BleTransfer {
-  async fn send_data(&self, data: &[u8]) -> Result<(), String> {
-    let handler =
-      tauri_plugin_blec::get_handler().map_err(|e| format!("BLE handler unavailable: {:?}", e))?;
+impl<'a> Transfer for BleTransfer<'a> {
+  fn mtu(&self) -> usize {
+    self.mtu
+  }
 
-    // 如果数据小于等于 MTU，直接发送
-    if data.len() <= BLE_MTU {
-      handler
+  async fn send(&self, data: &[u8]) -> Result<(), String> {
+    if data.len() <= self.mtu {
+      self
+        .handler
         .send_data(WRITE_CHARACTERISTIC_UUID, data, WriteType::WithResponse)
         .await
         .map_err(|e| format!("BLE send failed: {:?}", e))?;
-      println!("Sent chunk of size: {}", 244);
       return Ok(());
-    }
-
-    // 数据超过 MTU，分包发送
-    for chunk in data.chunks(BLE_MTU) {
-      handler
-        .send_data(WRITE_CHARACTERISTIC_UUID, chunk, WriteType::WithResponse)
-        .await
-        .map_err(|e| format!("BLE chunk send failed: {:?}", e))?;
-      println!("Sent chunk of size: {}", chunk.len());
-    }
-
-    Ok(())
-  }
-
-  async fn receive_data(&self) -> Result<Vec<u8>, String> {
-    // BLE receive logic would go here. For now, returning an empty vector.
-    // In a real scenario, this would involve listening for notifications/indications
-    // on READ_CHARACTERISTIC_UUID.
-    Ok(Vec::new())
-  }
-
-  async fn notify(
-    &self,
-    callback: Arc<dyn Fn(Vec<u8>) + Send + Sync + 'static>,
-    enable: bool,
-  ) -> Result<(), String> {
-    if enable {
-      tauri_plugin_blec::get_handler()
-        .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
-        .subscribe(READ_CHARACTERISTIC_UUID, move |data| {
-          callback(data);
-        })
-        .await
-        .map_err(|e| format!("BLE subscribe failed: {:?}", e))
     } else {
-      tauri_plugin_blec::get_handler()
-        .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
-        .unsubscribe(READ_CHARACTERISTIC_UUID)
-        .await
-        .map_err(|e| format!("BLE unsubscribe failed: {:?}", e))
+      return Err(format!(
+        "Data size {} exceeds BLE MTU limit of {}",
+        data.len(),
+        self.mtu
+      ));
     }
+  }
+
+  async fn read(&self) -> Result<Vec<u8>, String> {
+    self
+      .handler
+      .recv_data(READ_CHARACTERISTIC_UUID)
+      .await
+      .map_err(|e| format!("BLE read failed: {:?}", e))
+  }
+
+  async fn subcribe(
+    &self,
+    callback: Arc<
+      dyn (Fn(Vec<u8>) -> futures::future::BoxFuture<'static, ()>) + Send + Sync + 'static,
+    >,
+  ) -> Result<(), String> {
+    tauri_plugin_blec::get_handler()
+      .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
+      .subscribe(READ_CHARACTERISTIC_UUID, move |data| {
+        callback(data);
+      })
+      .await
+      .map_err(|e| format!("BLE subscribe failed: {:?}", e))
+  }
+
+  async fn unsubscribe(&self) -> Result<(), String> {
+    self
+      .handler
+      .unsubscribe(READ_CHARACTERISTIC_UUID)
+      .await
+      .map_err(|e| format!("BLE unsubscribe failed: {:?}", e))
   }
 }

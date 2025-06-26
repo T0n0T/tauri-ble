@@ -3,8 +3,6 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
-use tauri_plugin_blec::get_handler;
-use tauri_plugin_blec::models::WriteType;
 use tokio::{fs, sync::watch, time::Instant};
 use uuid::Uuid;
 
@@ -75,14 +73,26 @@ impl FirmwareBlockHeader {
 }
 
 pub struct SampleOta {
+  dev_mac: String,
+  state: DFUState,
+  mcu_state: McuDfuState,
+  total_blocks: usize,
+  current_block_index: usize,
+  current_chunk_index: usize,
   mcu_state_sender: watch::Sender<McuDfuState>,
   mcu_state_receiver: watch::Receiver<McuDfuState>,
 }
 
 impl SampleOta {
-  pub fn new() -> Self {
+  pub fn new(dev_mac: String, transfer: impl<>) -> Self {
     let (tx, rx) = watch::channel(McuDfuState::Idle);
     SampleOta {
+      dev_mac,
+      state: DFUState::Start,
+      mcu_state: McuDfuState::Idle,
+      total_blocks: 0,
+      current_block_index: 0,
+      current_chunk_index: 0,
       mcu_state_sender: tx,
       mcu_state_receiver: rx,
     }
@@ -132,243 +142,245 @@ impl Ota for SampleOta {
     let total_blocks = (file_data.len() + DFU_PAGE_LEN - 1) / DFU_PAGE_LEN;
 
     let ota_result = async {
-    loop {
-      let mcu_response_state = *mcu_state_receiver_clone.borrow();
+      loop {
+        let mcu_response_state = *mcu_state_receiver_clone.borrow();
 
-      if last_state_change.elapsed() > Duration::from_secs(10) {
-        println!("OTA process timed out in state: {:?}", current_state);
-        current_state = DFUState::Fault;
-      }
+        if last_state_change.elapsed() > Duration::from_secs(10) {
+          println!("OTA process timed out in state: {:?}", current_state);
+          current_state = DFUState::Fault;
+        }
 
-      if current_state != DFUState::Start
-        && current_state != DFUState::Complete
-        && current_state != DFUState::Fault
-      {
-        if mcu_response_state == last_mcu_response_state && mcu_response_state != McuDfuState::Idle
+        if current_state != DFUState::Start
+          && current_state != DFUState::Complete
+          && current_state != DFUState::Fault
         {
-          tokio::time::sleep(Duration::from_millis(10)).await;
-          continue;
+          if mcu_response_state == last_mcu_response_state
+            && mcu_response_state != McuDfuState::Idle
+          {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            continue;
+          }
+          last_mcu_response_state = mcu_response_state;
         }
-        last_mcu_response_state = mcu_response_state;
-      }
-      if mcu_response_state == McuDfuState::FAULT {
-        current_state = DFUState::Fault;
-      }
-      match current_state {
-        DFUState::Start => {
-          println!("State: Start -> Sending OTA command");
-          handler
-            .send_data(
-              WRITE_CHARACTERISTIC_UUID,
-              "update\r\n".as_bytes(),
-              WriteType::WithResponse,
-            )
-            .await
-            .map_err(|e| format!("BLE send failed: {:?}", e))?;
-          current_state = DFUState::SendPreamble;
-          tokio::time::sleep(Duration::from_secs(1)).await;
-          last_state_change = Instant::now();
+        if mcu_response_state == McuDfuState::FAULT {
+          current_state = DFUState::Fault;
         }
-        DFUState::SendPreamble => {
-          if mcu_response_state == McuDfuState::Idle {
+        match current_state {
+          DFUState::Start => {
+            println!("State: Start -> Sending OTA command");
             handler
               .send_data(
                 WRITE_CHARACTERISTIC_UUID,
-                &DFU_PREAMBLE,
+                "update\r\n".as_bytes(),
                 WriteType::WithResponse,
               )
               .await
               .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!("State: SendPreamble -> Preamble sent, waiting for MCU response");
-            current_state = DFUState::SendTotalBlocks;
+            current_state = DFUState::SendPreamble;
+            tokio::time::sleep(Duration::from_secs(1)).await;
             last_state_change = Instant::now();
           }
-        }
-        DFUState::SendTotalBlocks => {
-          if mcu_response_state == McuDfuState::Prepare {
-            handler
-              .send_data(
-                WRITE_CHARACTERISTIC_UUID,
-                &DFU_ACK_PATTERN.to_le_bytes(),
-                WriteType::WithResponse,
-              )
-              .await
-              .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!("State: SendTotalBlocks -> MCU Ready for Total Blocks");
-            let total_blocks_bytes = (total_blocks as u32).to_le_bytes();
-            handler
-              .send_data(
-                WRITE_CHARACTERISTIC_UUID,
-                &total_blocks_bytes,
-                WriteType::WithResponse,
-              )
-              .await
-              .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!(
-              "State: SendTotalBlocks -> Sending Total Blocks: {}",
-              total_blocks
-            );
-            current_state = DFUState::SendBlockHeader;
-            last_state_change = Instant::now();
-          }
-        }
-        DFUState::SendBlockHeader => {
-          if mcu_response_state == McuDfuState::Header {
-            handler
-              .send_data(
-                WRITE_CHARACTERISTIC_UUID,
-                &DFU_ACK_PATTERN.to_le_bytes(),
-                WriteType::WithResponse,
-              )
-              .await
-              .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!("State: SendBlockHeader -> MCU Ready for Block Header");
-            // 模拟块头数据，实际应从固件文件中解析
-            let block_header = FirmwareBlockHeader {
-              signature: [0u8; 64], // 示例签名
-              block_size: (file_data.len() - current_block_index * DFU_PAGE_LEN).min(DFU_PAGE_LEN)
-                as u32, // 实际块大小
-            };
-            let block_header_bytes = block_header.to_bytes();
-            handler
-              .send_data(
-                WRITE_CHARACTERISTIC_UUID,
-                &block_header_bytes,
-                WriteType::WithResponse,
-              )
-              .await
-              .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!(
-              "State: SendBlockHeader -> Sending Block {} Header",
-              current_block_index
-            );
-            current_state = DFUState::SendBlockData;
-            last_state_change = Instant::now();
-          }
-        }
-        DFUState::SendBlockData => {
-          if mcu_response_state == McuDfuState::Data {
-            handler
-              .send_data(
-                WRITE_CHARACTERISTIC_UUID,
-                &DFU_ACK_PATTERN.to_le_bytes(),
-                WriteType::WithResponse,
-              )
-              .await
-              .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!("State: SendBlockData -> MCU Ready for Block Data");
-            let start = current_block_index * DFU_PAGE_LEN;
-            let end = (start + DFU_PAGE_LEN).min(file_data.len());
-            let block_data = &file_data[start..end];
-
-            // 如果数据小于等于 MTU，直接发送
-            if block_data.len() <= BLE_MTU {
+          DFUState::SendPreamble => {
+            if mcu_response_state == McuDfuState::Idle {
               handler
                 .send_data(
                   WRITE_CHARACTERISTIC_UUID,
-                  block_data,
+                  &DFU_PREAMBLE,
                   WriteType::WithResponse,
                 )
                 .await
                 .map_err(|e| format!("BLE send failed: {:?}", e))?;
-              println!("Sent chunk of size: {}", block_data.len());
-            } else {
-              // 数据超过 MTU，分包发送
-              let chunks = block_data.chunks(BLE_MTU);
+              println!("State: SendPreamble -> Preamble sent, waiting for MCU response");
+              current_state = DFUState::SendTotalBlocks;
+              last_state_change = Instant::now();
+            }
+          }
+          DFUState::SendTotalBlocks => {
+            if mcu_response_state == McuDfuState::Prepare {
+              handler
+                .send_data(
+                  WRITE_CHARACTERISTIC_UUID,
+                  &DFU_ACK_PATTERN.to_le_bytes(),
+                  WriteType::WithResponse,
+                )
+                .await
+                .map_err(|e| format!("BLE send failed: {:?}", e))?;
+              println!("State: SendTotalBlocks -> MCU Ready for Total Blocks");
+              let total_blocks_bytes = (total_blocks as u32).to_le_bytes();
+              handler
+                .send_data(
+                  WRITE_CHARACTERISTIC_UUID,
+                  &total_blocks_bytes,
+                  WriteType::WithResponse,
+                )
+                .await
+                .map_err(|e| format!("BLE send failed: {:?}", e))?;
               println!(
-                "Block {} Data Size: {}, Chunks: {}",
-                current_block_index,
-                block_data.len(),
-                chunks.len()
+                "State: SendTotalBlocks -> Sending Total Blocks: {}",
+                total_blocks
               );
-              for chunk in chunks {
-                handler
-                  .send_data(WRITE_CHARACTERISTIC_UUID, chunk, WriteType::WithResponse)
-                  .await
-                  .map_err(|e| format!("BLE chunk send failed: {:?}", e))?;
-                println!("Sent chunk of size: {}", chunk.len());
-              }
+              current_state = DFUState::SendBlockHeader;
+              last_state_change = Instant::now();
             }
+          }
+          DFUState::SendBlockHeader => {
+            if mcu_response_state == McuDfuState::Header {
+              handler
+                .send_data(
+                  WRITE_CHARACTERISTIC_UUID,
+                  &DFU_ACK_PATTERN.to_le_bytes(),
+                  WriteType::WithResponse,
+                )
+                .await
+                .map_err(|e| format!("BLE send failed: {:?}", e))?;
+              println!("State: SendBlockHeader -> MCU Ready for Block Header");
+              // 模拟块头数据，实际应从固件文件中解析
+              let block_header = FirmwareBlockHeader {
+                signature: [0u8; 64], // 示例签名
+                block_size: (file_data.len() - current_block_index * DFU_PAGE_LEN).min(DFU_PAGE_LEN)
+                  as u32, // 实际块大小
+              };
+              let block_header_bytes = block_header.to_bytes();
+              handler
+                .send_data(
+                  WRITE_CHARACTERISTIC_UUID,
+                  &block_header_bytes,
+                  WriteType::WithResponse,
+                )
+                .await
+                .map_err(|e| format!("BLE send failed: {:?}", e))?;
+              println!(
+                "State: SendBlockHeader -> Sending Block {} Header",
+                current_block_index
+              );
+              current_state = DFUState::SendBlockData;
+              last_state_change = Instant::now();
+            }
+          }
+          DFUState::SendBlockData => {
+            if mcu_response_state == McuDfuState::Data {
+              handler
+                .send_data(
+                  WRITE_CHARACTERISTIC_UUID,
+                  &DFU_ACK_PATTERN.to_le_bytes(),
+                  WriteType::WithResponse,
+                )
+                .await
+                .map_err(|e| format!("BLE send failed: {:?}", e))?;
+              println!("State: SendBlockData -> MCU Ready for Block Data");
+              let start = current_block_index * DFU_PAGE_LEN;
+              let end = (start + DFU_PAGE_LEN).min(file_data.len());
+              let block_data = &file_data[start..end];
 
-            println!(
-              "State: SEND_BLOCK_DATA -> Sending Block {} Data",
-              current_block_index
-            );
-            current_state = DFUState::WaitVerify;
-            last_state_change = Instant::now();
-          }
-        }
-        DFUState::WaitVerify => {
-          if mcu_response_state == McuDfuState::Verify {
-            handler
-              .send_data(
-                WRITE_CHARACTERISTIC_UUID,
-                &DFU_ACK_PATTERN.to_le_bytes(),
-                WriteType::WithResponse,
-              )
-              .await
-              .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!(
-              "State: WAIT_VERIFY -> MCU Verify Block {}",
-              current_block_index
-            );
-            current_state = DFUState::WaitWrite;
-            last_state_change = Instant::now();
-          }
-        }
-        DFUState::WaitWrite => {
-          if mcu_response_state == McuDfuState::Write {
-            handler
-              .send_data(
-                WRITE_CHARACTERISTIC_UUID,
-                &DFU_ACK_PATTERN.to_le_bytes(),
-                WriteType::WithResponse,
-              )
-              .await
-              .map_err(|e| format!("BLE send failed: {:?}", e))?;
-            println!(
-              "State: WAIT_WRITE -> MCU Write Block {}",
-              current_block_index
-            );
-            current_block_index += 1;
-            if current_block_index >= total_blocks {
-              current_state = DFUState::Complete;
-            } else {
-              let progress_percentage =
-                ((current_block_index as f64 / total_blocks as f64) * 100.0) as u32;
-              app_handle
-                .emit("ota_progress", progress_percentage)
-                .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
-              current_state = DFUState::SendBlockHeader; // 准备发送下一个块的头部
+              // 如果数据小于等于 MTU，直接发送
+              if block_data.len() <= BLE_MTU {
+                handler
+                  .send_data(
+                    WRITE_CHARACTERISTIC_UUID,
+                    block_data,
+                    WriteType::WithResponse,
+                  )
+                  .await
+                  .map_err(|e| format!("BLE send failed: {:?}", e))?;
+                println!("Sent chunk of size: {}", block_data.len());
+              } else {
+                // 数据超过 MTU，分包发送
+                let chunks = block_data.chunks(BLE_MTU);
+                println!(
+                  "Block {} Data Size: {}, Chunks: {}",
+                  current_block_index,
+                  block_data.len(),
+                  chunks.len()
+                );
+                for chunk in chunks {
+                  handler
+                    .send_data(WRITE_CHARACTERISTIC_UUID, chunk, WriteType::WithResponse)
+                    .await
+                    .map_err(|e| format!("BLE chunk send failed: {:?}", e))?;
+                  println!("Sent chunk of size: {}", chunk.len());
+                }
+              }
+
+              println!(
+                "State: SEND_BLOCK_DATA -> Sending Block {} Data",
+                current_block_index
+              );
+              current_state = DFUState::WaitVerify;
+              last_state_change = Instant::now();
             }
-            last_state_change = Instant::now();
+          }
+          DFUState::WaitVerify => {
+            if mcu_response_state == McuDfuState::Verify {
+              handler
+                .send_data(
+                  WRITE_CHARACTERISTIC_UUID,
+                  &DFU_ACK_PATTERN.to_le_bytes(),
+                  WriteType::WithResponse,
+                )
+                .await
+                .map_err(|e| format!("BLE send failed: {:?}", e))?;
+              println!(
+                "State: WAIT_VERIFY -> MCU Verify Block {}",
+                current_block_index
+              );
+              current_state = DFUState::WaitWrite;
+              last_state_change = Instant::now();
+            }
+          }
+          DFUState::WaitWrite => {
+            if mcu_response_state == McuDfuState::Write {
+              handler
+                .send_data(
+                  WRITE_CHARACTERISTIC_UUID,
+                  &DFU_ACK_PATTERN.to_le_bytes(),
+                  WriteType::WithResponse,
+                )
+                .await
+                .map_err(|e| format!("BLE send failed: {:?}", e))?;
+              println!(
+                "State: WAIT_WRITE -> MCU Write Block {}",
+                current_block_index
+              );
+              current_block_index += 1;
+              if current_block_index >= total_blocks {
+                current_state = DFUState::Complete;
+              } else {
+                let progress_percentage =
+                  ((current_block_index as f64 / total_blocks as f64) * 100.0) as u32;
+                app_handle
+                  .emit("ota_progress", progress_percentage)
+                  .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
+                current_state = DFUState::SendBlockHeader; // 准备发送下一个块的头部
+              }
+              last_state_change = Instant::now();
+            }
+          }
+          DFUState::Complete => {
+            println!("OTA process completed successfully for file: {}", file_path);
+            app_handle
+              .emit("ota_progress", 100)
+              .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
+            return Ok(());
+          }
+          DFUState::Fault => {
+            println!("OTA process failed for file: {}", file_path);
+            app_handle
+              .emit("ota_progress", 0)
+              .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
+            app_handle
+              .emit("ota_error", "OTA process failed")
+              .map_err(|e| format!("Failed to emit OTA error: {}", e))?;
+            return Err("OTA process failed".to_string());
           }
         }
-        DFUState::Complete => {
-          println!("OTA process completed successfully for file: {}", file_path);
-          app_handle
-            .emit("ota_progress", 100)
-            .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
-          return Ok(());
-        }
-        DFUState::Fault => {
-          println!("OTA process failed for file: {}", file_path);
-          app_handle
-            .emit("ota_progress", 0)
-            .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
-          app_handle
-            .emit("ota_error", "OTA process failed")
-            .map_err(|e| format!("Failed to emit OTA error: {}", e))?;
-          return Err("OTA process failed".to_string());
-        }
+        tokio::time::sleep(Duration::from_millis(5)).await; // 避免忙循环，等待MCU响应
       }
-      tokio::time::sleep(Duration::from_millis(5)).await; // 避免忙循环，等待MCU响应
     }
-    }.await;
+    .await;
 
     // 无论OTA过程成功或失败，都尝试停止通知
     if let Err(e) = handler.unsubscribe(READ_CHARACTERISTIC_UUID).await {
-        eprintln!("Failed to unsubscribe BLE: {}", e);
+      eprintln!("Failed to unsubscribe BLE: {}", e);
     }
     ota_result
   }
