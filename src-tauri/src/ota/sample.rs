@@ -19,6 +19,7 @@ pub enum DFUState {
   SendBlockHeader,
   SendBlockData,
   WaitVerify,
+  WaitWrite,
   Complete,
   Fault,
 }
@@ -122,6 +123,7 @@ impl Ota for SampleOta {
       )
       .await?;
 
+    println!("Notify callback set for transfer");
     let mut current_state = DFUState::Start;
     let mut current_block_index = 0;
     let mut last_state_change = Instant::now();
@@ -223,34 +225,40 @@ impl Ota for SampleOta {
               "State: WAIT_VERIFY -> MCU Verify Block {}",
               current_block_index
             );
+            current_state = DFUState::WaitWrite;
             last_state_change = Instant::now();
-          } else if mcu_response_state == McuDfuState::Write {
+          }
+        }
+        DFUState::WaitWrite => {
+          if mcu_response_state == McuDfuState::Write {
             transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
-            if current_block_index < total_blocks - 1 {
-              current_block_index += 1;
+            println!(
+              "State: WAIT_WRITE -> MCU Write Block {}",
+              current_block_index
+            );
+            current_block_index += 1;
+            if current_block_index >= total_blocks {
+              current_state = DFUState::Complete;
+            } else {
               let progress_percentage =
                 ((current_block_index as f64 / total_blocks as f64) * 100.0) as u32;
               app_handle
                 .emit("ota_progress", progress_percentage)
-                .unwrap();
-              current_state = DFUState::SendBlockHeader;
-              last_state_change = Instant::now();
+                .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
+              current_state = DFUState::SendBlockHeader; // 准备发送下一个块的头部
             }
-          } else if mcu_response_state == McuDfuState::Final {
-            transfer.send_data(&DFU_ACK_PATTERN.to_le_bytes()).await?;
-            current_state = DFUState::Complete;
             last_state_change = Instant::now();
           }
         }
         DFUState::Complete => {
           println!("OTA process completed successfully for file: {}", file_path);
-          app_handle.emit("ota_progress", 100).unwrap(); // 通知前端完成
+          app_handle.emit("ota_progress", 100).map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
           break;
         }
         DFUState::Fault => {
           println!("OTA process failed for file: {}", file_path);
-          app_handle.emit("ota_progress", 0).unwrap(); // 通知前端失败
-          app_handle.emit("ota_error", "OTA process failed").unwrap(); // 通知前端OTA错误
+          app_handle.emit("ota_progress", 0).map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
+          app_handle.emit("ota_error", "OTA process failed").map_err(|e| format!("Failed to emit OTA error: {}", e))?;
           break;
         }
       }
