@@ -31,30 +31,32 @@ async fn submit_valve_form(form_data: ValveForm) -> Result<(), String> {
     .map(|json| format!("config_write {}\r\n", json)) // 拼接前缀
     .map_err(|e| format!("Serialization failed: {}", e))?;
 
-  let ble_transfer = BleTransfer::new();
+  let ble_transfer = BleTransfer::new()
+    .await
+    .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   ble_transfer.send(payload.as_bytes()).await
 }
 
 #[tauri::command]
 async fn start_valve_info(app_handle: tauri::AppHandle) -> Result<(), String> {
-  let ble_transfer = BleTransfer::new();
+  let ble_transfer = BleTransfer::new()
+    .await
+    .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   ble_transfer
-    .subcribe(Arc::new(move |data: Vec<u8>| {
-      Box::pin(async move {
-        let app_handle = app_handle.clone(); // 克隆 app_handle
-        if data.len() != std::mem::size_of::<ValveVal>() {
-          eprintln!(
-            "Received data length mismatch. Expected {}, got {}",
-            std::mem::size_of::<ValveVal>(),
-            data.len()
-          );
-        }
-        let valve_info: ValveVal = *bytemuck::from_bytes::<ValveVal>(&data);
-        println!("Valve Info: {:?}", valve_info);
-        if let Err(e) = app_handle.emit("valve_info", valve_info) {
-          eprintln!("Failed to emit valve info: {}", e);
-        }
-      })
+    .subscribe(Arc::new(move |data: Vec<u8>| {
+      if data.len() != std::mem::size_of::<ValveVal>() {
+        eprintln!(
+          "Received data length mismatch. Expected {}, got {}",
+          std::mem::size_of::<ValveVal>(),
+          data.len()
+        );
+        return;
+      }
+      let valve_info: ValveVal = *bytemuck::from_bytes::<ValveVal>(&data);
+      println!("Valve Info: {:?}", valve_info);
+      if let Err(e) = app_handle.emit("valve_info", valve_info) {
+        eprintln!("Failed to emit valve info: {}", e);
+      }
     }))
     .await
     .map_err(|e| format!("Failed to start valve info: {}", e))?;
@@ -64,33 +66,29 @@ async fn start_valve_info(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 async fn stop_valve_info() -> Result<(), String> {
-  let ble_transfer = BleTransfer::new();
+  let ble_transfer = BleTransfer::new()
+    .await
+    .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   ble_transfer.unsubscribe().await?;
   ble_transfer.send("valve_info 0\r\n".as_bytes()).await
 }
 
 #[tauri::command]
 async fn reboot_valve() -> Result<(), String> {
-  let ble_transfer = BleTransfer::new();
+  let ble_transfer = BleTransfer::new()
+    .await
+    .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   ble_transfer.send("reboot\r\n".as_bytes()).await
 }
 
 #[tauri::command]
 async fn start_valve_ota(app_handle: tauri::AppHandle, file_path: String) -> Result<(), String> {
-  let ota_impl = SampleOta::new();
-  let handler =
-    tauri_plugin_blec::get_handler().map_err(|e| format!("BLE handler unavailable: {:?}", e))?;
-
-  let connected_device = handler
-    .connected_device()
+  let ble_transfer = BleTransfer::new()
     .await
-    .map_err(|e| format!("Failed to get connected device: {:?}", e))?;
+    .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
+  let mut ota_impl = SampleOta::new(Arc::new(ble_transfer));
 
-  let device_address = connected_device.address;
-
-  ota_impl
-    .start_ota(app_handle, file_path, device_address)
-    .await
+  ota_impl.start_ota(app_handle, file_path).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

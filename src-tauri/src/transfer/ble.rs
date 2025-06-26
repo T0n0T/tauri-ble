@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use tauri_plugin_blec::models::WriteType;
+use tauri_plugin_blec::{OnDisconnectHandler, models::WriteType};
 use uuid::Uuid;
 
 use super::Transfer;
@@ -10,25 +10,57 @@ const WRITE_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000ffe2-0000-1000-8000-008
 
 const BLE_MTU: usize = 247 - 3;
 
-pub struct BleTransfer<'a> {
-  handler: &'a tauri_plugin_blec::Handler,
+pub struct BleTransfer {
+  handler: &'static tauri_plugin_blec::Handler,
+  mac: String,
   mtu: usize,
 }
 
-impl<'a> BleTransfer<'a> {
-  pub fn new() -> Self {
-    let handler = tauri_plugin_blec::get_handler().expect("BLE handler unavailable");
-    BleTransfer {
+impl BleTransfer {
+  pub async fn new() -> Result<Self, String> {
+    let handler =
+      tauri_plugin_blec::get_handler().map_err(|e| format!("BLE handler unavailable: {:?}", e))?;
+    let mac = handler
+      .connected_device()
+      .await
+      .map_err(|e| format!("Failed to get connected device: {:?}", e))?
+      .address;
+
+    Ok(BleTransfer {
       handler,
+      mac,
       mtu: BLE_MTU,
-    }
+    })
   }
 }
 
 #[async_trait]
-impl<'a> Transfer for BleTransfer<'a> {
-  fn mtu(&self) -> usize {
+impl Transfer for BleTransfer {
+  fn get_mtu(&self) -> usize {
     self.mtu
+  }
+
+  async fn activate(&self) -> Result<(), String> {
+    if !self.handler.is_connected() {
+      self
+        .handler
+        .connect(self.mac.as_str(), OnDisconnectHandler::None)
+        .await
+        .map_err(|e| format!("BLE activation failed: {:?}", e))?;
+    }
+    Ok(())
+  }
+
+  async fn deactivate(&self) -> Result<(), String> {
+    self
+      .handler
+      .disconnect()
+      .await
+      .map_err(|e| format!("BLE deactivation failed: {:?}", e))
+  }
+
+  async fn is_actived(&self) -> Result<bool, String> {
+    Ok(self.handler.is_connected())
   }
 
   async fn send(&self, data: &[u8]) -> Result<(), String> {
@@ -56,11 +88,9 @@ impl<'a> Transfer for BleTransfer<'a> {
       .map_err(|e| format!("BLE read failed: {:?}", e))
   }
 
-  async fn subcribe(
+  async fn subscribe(
     &self,
-    callback: Arc<
-      dyn (Fn(Vec<u8>) -> futures::future::BoxFuture<'static, ()>) + Send + Sync + 'static,
-    >,
+    callback: Arc<dyn Fn(Vec<u8>) + Send + Sync + 'static>,
   ) -> Result<(), String> {
     tauri_plugin_blec::get_handler()
       .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
