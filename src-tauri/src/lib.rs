@@ -82,7 +82,7 @@ async fn start_valve_ota(app_handle: tauri::AppHandle, file_path: String) -> Res
   let ota_impl = SampleOta::new();
   let ble_transfer = BleTransfer::new();
   ota_impl
-    .start_ota(app_handle, file_path, ble_transfer)
+    .start_ota(app_handle, file_path)
     .await
 }
 

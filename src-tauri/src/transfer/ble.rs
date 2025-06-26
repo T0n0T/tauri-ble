@@ -30,6 +30,7 @@ impl Transfer for BleTransfer {
         .send_data(WRITE_CHARACTERISTIC_UUID, data, WriteType::WithResponse)
         .await
         .map_err(|e| format!("BLE send failed: {:?}", e))?;
+      println!("Sent chunk of size: {}", 244);
       return Ok(());
     }
 
@@ -39,6 +40,7 @@ impl Transfer for BleTransfer {
         .send_data(WRITE_CHARACTERISTIC_UUID, chunk, WriteType::WithResponse)
         .await
         .map_err(|e| format!("BLE chunk send failed: {:?}", e))?;
+      println!("Sent chunk of size: {}", chunk.len());
     }
 
     Ok(())
