@@ -191,33 +191,28 @@ impl SampleOta {
           let end = (start + DFU_PAGE_LEN).min(file_data.len());
           let block_data = &file_data[start..end];
 
-          // 如果数据小于等于 MTU，直接发送
-          if block_data.len() <= max_transport_unit {
-            self
-              .transfer
-              .send(block_data)
-              .await
-              .map_err(|e| format!("OTA send failed: {:?}", e))?;
-            println!("Sent chunk of size: {}", block_data.len());
-          } else {
-            // 数据超过 MTU，分包发送
-            let chunks = block_data.chunks(max_transport_unit);
+          let chunks = block_data.chunks(max_transport_unit).collect::<Vec<_>>();
+          println!(
+            "Block {} Data Size: {}, Chunks: {}",
+            self.current_block_index,
+            block_data.len(),
+            chunks.len()
+          );
+          for chunk in chunks[self.current_chunk_index..].iter() {
+            self.transfer.send(*chunk).await.map_err(|e| {
+              format!(
+                "OTA chunk {} send failed: {:?}",
+                self.current_chunk_index, e
+              )
+            })?;
             println!(
-              "Block {} Data Size: {}, Chunks: {}",
-              self.current_block_index,
-              block_data.len(),
-              chunks.len()
+              "Sent chunk {} of size: {}",
+              self.current_chunk_index,
+              chunk.len()
             );
-            for chunk in chunks {
-              self
-                .transfer
-                .send(chunk)
-                .await
-                .map_err(|e| format!("OTA chunk send failed: {:?}", e))?;
-              println!("Sent chunk of size: {}", chunk.len());
-            }
+            self.current_chunk_index += 1;
           }
-
+          self.current_chunk_index = 0;
           println!(
             "State: SEND_BLOCK_DATA -> Sending Block {} Data",
             self.current_block_index
@@ -250,12 +245,6 @@ impl SampleOta {
       }
       DFUState::Complete => {
         if self.mcu_state == McuDfuState::Final {
-          self
-            .transfer
-            .send(&DFU_PREAMBLE)
-            .await
-            .map_err(|e| format!("OTA send failed: {:?}", e))?;
-          println!("OTA process completed successfully for file: {}", file_path);
           app_handle
             .emit("ota_progress", 100)
             .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
@@ -263,7 +252,6 @@ impl SampleOta {
         return Ok(());
       }
       DFUState::Fault => {
-        println!("OTA process failed for file: {}", file_path);
         app_handle
           .emit("ota_progress", 0)
           .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
