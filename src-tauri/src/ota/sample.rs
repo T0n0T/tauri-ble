@@ -101,8 +101,13 @@ impl SampleOta {
     total_blocks: usize,
   ) -> Result<(bool, bool), String> {
     let last_state = self.state;
-    let max_transport_unit = self.transfer.get_mtu();
     let mcu_target_state = *self.mcu_state_receiver.borrow();
+    let mut progress_percentage_need_calculate = false;
+
+    if mcu_target_state == self.mcu_state && self.mcu_state != McuDfuState::Idle {
+      tokio::time::sleep(Duration::from_millis(10)).await;
+      return Ok((false, false));
+    }
 
     if mcu_target_state != McuDfuState::Idle
       && mcu_target_state != McuDfuState::Fault
@@ -116,10 +121,7 @@ impl SampleOta {
       //if error happened, retry next time will come here again
       self.mcu_state = mcu_target_state;
     }
-    if mcu_target_state == self.mcu_state && self.mcu_state != McuDfuState::Idle {
-      tokio::time::sleep(Duration::from_millis(10)).await;
-      return Ok((false, false));
-    }
+
     if self.mcu_state == McuDfuState::Fault {
       //mcu has been reboot, no way to retransfer
       self.state = DFUState::Fault;
@@ -191,14 +193,16 @@ impl SampleOta {
           let end = (start + DFU_PAGE_LEN).min(file_data.len());
           let block_data = &file_data[start..end];
 
-          let chunks = block_data.chunks(max_transport_unit).collect::<Vec<_>>();
+          let chunks = block_data
+            .chunks(self.transfer.get_mtu())
+            .collect::<Vec<_>>();
           println!(
             "Block {} Data Size: {}, Chunks: {}",
             self.current_block_index,
             block_data.len(),
             chunks.len()
           );
-          for chunk in chunks[self.current_chunk_index..].iter() {
+          for chunk in &chunks[self.current_chunk_index..] {
             self.transfer.send(*chunk).await.map_err(|e| {
               format!(
                 "OTA chunk {} send failed: {:?}",
@@ -240,28 +244,23 @@ impl SampleOta {
             self.state = DFUState::Complete;
           } else {
             self.state = DFUState::SendBlockHeader; // 准备发送下一个块的头部
+            progress_percentage_need_calculate = true;
           }
         }
       }
       DFUState::Complete => {
         if self.mcu_state == McuDfuState::Final {
-          app_handle
-            .emit("ota_progress", 100)
-            .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
+          progress_percentage_need_calculate = true;
         }
-        return Ok(());
       }
       DFUState::Fault => {
-        app_handle
-          .emit("ota_progress", 0)
-          .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
-        app_handle
-          .emit("ota_error", "OTA process failed")
-          .map_err(|e| format!("Failed to emit OTA error: {}", e))?;
         return Err("OTA process failed".to_string());
       }
     }
-    Ok(())
+    return Ok((
+      self.state != last_state, // true if state changed, false otherwise
+      progress_percentage_need_calculate,
+    ));
   }
 }
 
@@ -283,30 +282,104 @@ impl Ota for SampleOta {
     let mcu_state_sender_clone = self.mcu_state_sender.clone();
     let total_blocks = (file_data.len() + DFU_PAGE_LEN - 1) / DFU_PAGE_LEN;
 
+    let subscribe_callback = Arc::new(move |data: Vec<u8>| {
+      if let Some(&state_byte) = data.first() {
+        if let Ok(mcu_state) = McuDfuState::try_from(state_byte) {
+          let _ = mcu_state_sender_clone.send(mcu_state);
+          println!("Received MCU state: {:?}", mcu_state);
+        } else {
+          println!("Failed to parse MCU state byte: {}", state_byte);
+        }
+      } else {
+        println!("Received empty data from MCU notify.");
+      }
+    });
+
+    self.transfer.unsubscribe().await.ok();
+
     self
       .transfer
-      .subscribe(Arc::new(move |data: Vec<u8>| {
-        if let Some(&state_byte) = data.first() {
-          if let Ok(mcu_state) = McuDfuState::try_from(state_byte) {
-            let _ = mcu_state_sender_clone.send(mcu_state);
-            println!("Received MCU state: {:?}", mcu_state);
-          } else {
-            println!("Failed to parse MCU state byte: {}", state_byte);
-          }
-        } else {
-          println!("Received empty data from MCU notify.");
-        }
-      }))
+      .subscribe(subscribe_callback.clone())
       .await
       .map_err(|e| format!("Failed to subscribe to OTA: {}", e))?;
 
     println!("Notify callback set for transfer");
 
-    let ota_result = self.ota_process(total_blocks, &Instant::now()).await;
+    let mut last_state_change_time = Instant::now();
+    let mut retry = 3;
+    let ota_result = loop {
+      let ota_process_result = self.ota_process(file_data.clone(), total_blocks).await;
+
+      match ota_process_result {
+        Ok((state_changed, progress_needs_calculate)) => {
+          if self.state == DFUState::Fault {
+            // 错误处理分支，预留断点续传设计
+            println!("OTA process failed due to DFUState::Fault.");
+            app_handle
+              .emit("ota_error", "OTA process failed by MCU fault")
+              .map_err(|e| format!("Failed to emit OTA error: {}", e))?;
+            break Err("OTA process failed".to_string());
+          }
+          if state_changed {
+            last_state_change_time = Instant::now();
+          } else {
+            // 检查是否超过60秒没有状态更改
+            if last_state_change_time.elapsed() > Duration::from_secs(60) {
+              break Err(format!("OTA process Timeout"));
+            }
+          }
+
+          if progress_needs_calculate {
+            // 计算进度条
+            let progress_percentage =
+              ((self.current_block_index as f64 / total_blocks as f64) * 100.0) as u32;
+            app_handle
+              .emit("ota_progress", progress_percentage)
+              .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
+          }
+        }
+        Err(e) => {
+          println!("OTA process error: {}", e);
+          if retry > 0 {
+            retry -= 1;
+            println!("Retrying OTA process, attempts left: {}", retry);
+            if self.transfer.is_actived().await.ok().unwrap() {
+              self.transfer.unsubscribe().await.ok();              
+              println!("Unsubscribed from OTA, retrying...");
+            }
+            self
+              .transfer
+              .deactivate()
+              .await
+              .map_err(|e| format!("Failed to deactivate transfer: {}", e))?;
+            self
+              .transfer
+              .activate()
+              .await
+              .map_err(|e| format!("Failed to activate transfer: {}", e))?;
+            println!("Re-activating transfer for OTA...");
+            self
+              .transfer
+              .subscribe(subscribe_callback.clone())
+              .await
+              .map_err(|e| format!("Failed to re-subscribe to OTA: {}", e))?;
+            println!("Re-subscribed to OTA, retrying...");
+            continue; // 继续循环重试
+          } else {
+            println!("All retries exhausted, OTA process failed.");
+            app_handle
+              .emit("ota_error", "OTA process failed by retries exhausted")
+              .map_err(|e| format!("Failed to emit OTA error: {}", e))?;
+            break Err(e);
+          }
+        }
+      }
+      tokio::time::sleep(Duration::from_millis(5)).await; // 短暂延迟，避免CPU占用过高
+    };
 
     // 无论OTA过程成功或失败，都尝试停止通知
     if let Err(e) = self.transfer.unsubscribe().await {
-      eprintln!("Failed to unsubscribe OTA: {}", e);
+      println!("Failed to unsubscribe OTA: {}", e);
     }
     ota_result
   }

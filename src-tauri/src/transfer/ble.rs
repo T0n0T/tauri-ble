@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use tauri_plugin_blec::{OnDisconnectHandler, models::WriteType};
+use tauri_plugin_blec::models::WriteType;
 use uuid::Uuid;
 
 use super::Transfer;
@@ -41,13 +41,9 @@ impl Transfer for BleTransfer {
   }
 
   async fn activate(&self) -> Result<(), String> {
-    if !self.handler.is_connected() {
-      self
-        .handler
-        .connect(self.mac.as_str(), OnDisconnectHandler::None)
-        .await
-        .map_err(|e| format!("BLE activation failed: {:?}", e))?;
-    }
+    self.handler.discover_services(self.mac.as_str())
+      .await
+      .map_err(|e| format!("BLE activation failed: {:?}", e))?;
     Ok(())
   }
 
