@@ -51,7 +51,7 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
                   })
                   .catch((error) => {
                     console.error('Error invoking reboot_valve:', error);
-                    toast.error('发送设备重启命令失败，请稍后重试');
+                    toast.error(`发送设备重启命令失败，请稍后重试: ${error}`);
                   });
               }}
               className="absolute bottom-6 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg"

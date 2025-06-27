@@ -1,3 +1,4 @@
+use futures::future::ok;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -79,6 +80,32 @@ async fn reboot_valve() -> Result<(), String> {
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   ble_transfer.send("reboot\r\n".as_bytes()).await
+  // ble_transfer.unsubscribe().await.ok();     
+  // let subscribe_callback = Arc::new(move |data: Vec<u8>| {
+  //   println!("response: {:?}", data);
+  // });
+  // ble_transfer
+  // .subscribe(subscribe_callback.clone())
+  // .await
+  // .map_err(|e| format!("Failed to subscribe: {}", e))?;
+  // println!("Subscribed");
+  // ble_transfer.unsubscribe().await.ok();              
+  // println!("Unsubscribed...");
+  // ble_transfer
+  //   .deactivate()
+  //   .await
+  //   .map_err(|e| format!("Failed to deactivate transfer: {}", e))?;
+  // ble_transfer
+  //   .activate()
+  //   .await
+  //   .map_err(|e| format!("Failed to activate transfer: {}", e))?;
+  // println!("Re-activating transfer for OTA...");
+  // ble_transfer
+  //   .subscribe(subscribe_callback.clone())
+  //   .await
+  //   .map_err(|e| format!("Failed to re-subscribe to OTA: {}", e))?;
+  // println!("Re-subscribed to OTA, finish...");
+  // Ok(())
 }
 
 #[tauri::command]

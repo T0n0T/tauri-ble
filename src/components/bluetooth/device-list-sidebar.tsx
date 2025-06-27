@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/ui/sidebar";
 import ScanButton from "./scan-button";
 import DeviceCard from "./device-card";
-import { BleDevice, startScan, connect, disconnect } from '@mnlphlp/plugin-blec';
+import { BleDevice, startScan, stopScan, connect, disconnect } from '@mnlphlp/plugin-blec';
 interface DeviceListSidebarProps {
   onDeviceConnected: (deviceName: string) => void;
   onDeviceDisconnected: (deviceName: string) => void;
@@ -37,6 +37,11 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
         });
       }, 0).catch((error) => {
         console.error("Failed to start scan:", error);
+      });
+    } else { 
+      console.log("Stopping BLE scan...", isScanning);
+      stopScan().catch((error) => {
+        console.error("Failed to stop scan:", error);
       });
     }
   }, [isScanning]);

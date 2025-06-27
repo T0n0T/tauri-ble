@@ -337,6 +337,11 @@ impl Ota for SampleOta {
               .emit("ota_progress", progress_percentage)
               .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
           }
+
+          if self.state == DFUState::Complete {
+            println!("OTA process completed successfully.");
+            break Ok(());
+          }
         }
         Err(e) => {
           println!("OTA process error: {}", e);
@@ -344,7 +349,7 @@ impl Ota for SampleOta {
             retry -= 1;
             println!("Retrying OTA process, attempts left: {}", retry);
             if self.transfer.is_actived().await.ok().unwrap() {
-              self.transfer.unsubscribe().await.ok();              
+              self.transfer.unsubscribe().await.ok();
               println!("Unsubscribed from OTA, retrying...");
             }
             self
