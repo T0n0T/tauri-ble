@@ -28,3 +28,4 @@ async-trait = "0.1.80"
 tokio = { version = "1", features = ["full"] }
 bytemuck = { version = "1.23.1", features = ["derive"] }
 futures = "0.3.31"
+tauri-plugin-fs = "2"

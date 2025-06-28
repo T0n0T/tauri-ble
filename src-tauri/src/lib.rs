@@ -1,4 +1,3 @@
-use futures::future::ok;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -80,7 +79,7 @@ async fn reboot_valve() -> Result<(), String> {
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   ble_transfer.send("reboot\r\n".as_bytes()).await
-  // ble_transfer.unsubscribe().await.ok();     
+  // ble_transfer.unsubscribe().await.ok();
   // let subscribe_callback = Arc::new(move |data: Vec<u8>| {
   //   println!("response: {:?}", data);
   // });
@@ -89,7 +88,7 @@ async fn reboot_valve() -> Result<(), String> {
   // .await
   // .map_err(|e| format!("Failed to subscribe: {}", e))?;
   // println!("Subscribed");
-  // ble_transfer.unsubscribe().await.ok();              
+  // ble_transfer.unsubscribe().await.ok();
   // println!("Unsubscribed...");
   // ble_transfer
   //   .deactivate()
@@ -121,6 +120,7 @@ async fn start_valve_ota(app_handle: tauri::AppHandle, file_path: String) -> Res
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
     .invoke_handler(tauri::generate_handler![

@@ -3696,6 +3696,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-blec",
  "tauri-plugin-dialog",
+ "tauri-plugin-fs",
  "tokio",
  "uuid",
 ]

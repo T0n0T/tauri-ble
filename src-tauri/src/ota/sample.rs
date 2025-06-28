@@ -271,12 +271,16 @@ impl Ota for SampleOta {
     app_handle: tauri::AppHandle,
     file_path: String,
   ) -> Result<(), String> {
-    let file_data = Arc::new(
-      fs::read(&file_path)
-        .await
-        .map_err(|e| format!("Failed to read file: {}", e))?,
-    );
+    // let file_data = Arc::new(
+    //   fs::read(&file_path)
+    //     .await
+    //     .map_err(|e| format!("Failed to read file: {}", e))?,
+    // );
+    tauri_plugin_fs::Fs::open(&self, path, opts)
 
+    let file_data = Arc::new(
+      tauri_plugin_fs::Fs::read(file_path).map_err(|e| format!("Failed to read file: {}", e))?,
+    );
     println!("Starting OTA for file: {}", file_path);
 
     let mcu_state_sender_clone = self.mcu_state_sender.clone();
@@ -338,7 +342,7 @@ impl Ota for SampleOta {
               .map_err(|e| format!("Failed to emit OTA progress: {}", e))?;
           }
 
-          if self.state == DFUState::Complete {
+          if self.state == DFUState::Complete && self.mcu_state == McuDfuState::Final {
             println!("OTA process completed successfully.");
             break Ok(());
           }

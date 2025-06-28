@@ -41,8 +41,12 @@ impl Transfer for BleTransfer {
   }
 
   async fn activate(&self) -> Result<(), String> {
-    self.handler
-      .connect(self.mac.as_str(), tauri_plugin_blec::OnDisconnectHandler::None)
+    self
+      .handler
+      .connect(
+        self.mac.as_str(),
+        tauri_plugin_blec::OnDisconnectHandler::None,
+      )
       .await
       .map_err(|e| format!("BLE connection failed: {:?}", e))?;
     Ok(())
