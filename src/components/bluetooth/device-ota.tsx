@@ -1,7 +1,8 @@
 "use client";
-import { open } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { listen } from "@tauri-apps/api/event";
+import { open } from '@tauri-apps/plugin-dialog';
+import { info, error } from '@tauri-apps/plugin-log';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -36,30 +37,13 @@ export default function DeviceOta() {
   }, []);
 
   const handleFileSelect = async () => {
+    setOtaInProgress(true);
+    setOtaProgress(0);
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [{
-          name: "Firmware",
-          directory: false,
-          extensions: ["bin", "hex"],
-        }],
-      });
-
-      if (selected) {
-        console.log("Selected file:", selected);
-        setOtaInProgress(true);
-        setOtaProgress(0);
-        try {
-          await invoke("start_valve_ota", { filePath: selected });
-        } catch (invokeError) {
-          console.error("Error invoking start_valve_ota:", invokeError);
-          toast.error(`Failed to start OTA: ${invokeError}`);
-          setOtaInProgress(false);
-        }
-      }
-    } catch (error) {
-      console.error("Error selecting file:", error);
+      await invoke("start_valve_ota");
+    } catch (invokeError) {
+      error(`Failed to start OTA: ${invokeError}`);
+      toast.error(`Failed to start OTA: ${invokeError}`);
       setOtaInProgress(false);
     }
   };

@@ -2,8 +2,10 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from "@tauri-apps/api/event";
+import { info, error } from '@tauri-apps/plugin-log';
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
+
 interface ValveInfo {
     total_ticks: number;
     position: number;
@@ -17,9 +19,9 @@ export default function DeviceInfo() {
     const setup = async () => {
         try {
             await invoke<ValveInfo>('start_valve_info');
-            console.log('start_valve_info invoked')
-        } catch (error) {
-            console.error('Error invoking get_valve_info:', error);
+            info('start_valve_info invoked');
+        } catch (e) {
+            error(`Error invoking get_valve_info: ${e}`);
         }
     };
     // 类似 Vue 的 mounted + updated（依赖 count）
@@ -27,7 +29,6 @@ export default function DeviceInfo() {
         // 监听事件
         const unlisten = listen('valve_info', (event) => {
             const data = event.payload as ValveInfo;
-            console.log('接收到事件:', data);
             setValveInfo(data);
         });
 
@@ -36,8 +37,8 @@ export default function DeviceInfo() {
         return () => {
             unlisten.then((f) => f());
             invoke('stop_valve_info')
-                .then(() => console.log('stop_valve_info invoked'))
-                .catch((error) => console.error('Error invoking stop_valve_info:', error));
+                .then(() => info('stop_valve_info invoked'))
+                .catch((e) => error(`Error invoking stop_valve_info: ${e}`));
         };
     }, []); // 依赖项为 count
 

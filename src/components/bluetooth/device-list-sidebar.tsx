@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/ui/sidebar";
 import ScanButton from "./scan-button";
 import DeviceCard from "./device-card";
+import { info, error } from '@tauri-apps/plugin-log';
 import { BleDevice, startScan, stopScan, connect, disconnect } from '@mnlphlp/plugin-blec';
+import { toast } from "sonner";
 interface DeviceListSidebarProps {
   onDeviceConnected: (deviceName: string) => void;
   onDeviceDisconnected: (deviceName: string) => void;
@@ -13,11 +15,11 @@ interface DeviceListSidebarProps {
 export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnected }: DeviceListSidebarProps) {
   const [devices, setDevices] = useState<BleDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScanning, setIsScanning] = useState(0);
   const [connectedDeviceAddress, setConnectedDeviceAddress] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isScanning) {
+    if (isScanning === 1) {
       console.log("Starting BLE scan...", isScanning);
       startScan((newDevices) => {
         setDevices((prev) => {
@@ -35,20 +37,22 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
           });
           return updatedDevices;
         });
-      }, 0).catch((error) => {
-        console.error("Failed to start scan:", error);
+      }, 0).catch((e) => {
+        error(`Failed to start scan: ${e}`);
+        toast.error(`Failed to start scan: ${e}`);
       });
-    } else { 
+    } else if (isScanning === 2) {
       console.log("Stopping BLE scan...", isScanning);
-      stopScan().catch((error) => {
-        console.error("Failed to stop scan:", error);
+      stopScan().catch((e) => {
+        error(`Failed to stop scan: ${e}`);
+        toast.error(`Failed to stop scan: ${e}`);
       });
     }
   }, [isScanning]);
 
-  const handleScanToggle = async (scanning: boolean) => {
+  const handleScanToggle = async (scanning: number) => {
     setIsScanning(scanning);
-    if (scanning) {
+    if (scanning === 1) {
       setDevices([]);
     }
   };
@@ -57,9 +61,9 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
     if (connectedDeviceAddress && connectedDeviceAddress !== deviceAddress) {
       try {
         await disconnect();
-        console.log(`Disconnected from previous device: ${connectedDeviceAddress}`);
-      } catch (error) {
-        console.error(`Failed to disconnect from previous device ${connectedDeviceAddress}:`, error);
+        info(`Disconnected from previous device: ${connectedDeviceAddress}`);
+      } catch (e) {
+        error(`Failed to disconnect from previous device ${connectedDeviceAddress}: ${e}`);
       }
     }
 
@@ -68,17 +72,17 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
     if (connectedDevice) {
       try {
         await connect(deviceAddress, () => {
-          console.log(`Disconnected from device: ${deviceAddress}`);
+          info(`Disconnected from device: ${deviceAddress}`);
           setConnectedDeviceAddress(null); // Clear connected device on disconnect
           const deviceName = devices.find(d => d.address === deviceAddress)?.name || deviceAddress;
           onDeviceDisconnected(deviceName);
         });
-        console.log(`Connected to device: ${deviceAddress}`);
+        info(`Connected to device: ${deviceAddress}`);
         setConnectedDeviceAddress(deviceAddress);
         const deviceName = connectedDevice.name || connectedDevice.address;
         onDeviceConnected(deviceName);
-      } catch (error) {
-        console.error(`Failed to connect to device ${deviceAddress}:`, error);
+      } catch (e) {
+        error(`Failed to connect to device ${deviceAddress}: ${e}`);
         setConnectedDeviceAddress(null);
       }
     }

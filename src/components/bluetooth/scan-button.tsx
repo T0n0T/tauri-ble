@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 interface ScanButtonProps {
-  onScanToggle: (isScanning: boolean) => void;
+  onScanToggle: (isScanning: number) => void;
 }
 
 export default function ScanButton({ onScanToggle }: ScanButtonProps) {
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScanning, setIsScanning] = useState(0);
 
   const handleClick = () => {
-    const newState = !isScanning;
+    const newState = isScanning === 1 ? 2 : 1;
     setIsScanning(newState);
     onScanToggle(newState);
   };

@@ -1,4 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use fern::colors::{Color, ColoredLevelConfig};
+use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::Emitter;
@@ -45,7 +47,7 @@ async fn start_valve_info(app_handle: tauri::AppHandle) -> Result<(), String> {
   ble_transfer
     .subscribe(Arc::new(move |data: Vec<u8>| {
       if data.len() != std::mem::size_of::<ValveVal>() {
-        eprintln!(
+        log::error!(
           "Received data length mismatch. Expected {}, got {}",
           std::mem::size_of::<ValveVal>(),
           data.len()
@@ -53,9 +55,9 @@ async fn start_valve_info(app_handle: tauri::AppHandle) -> Result<(), String> {
         return;
       }
       let valve_info: ValveVal = *bytemuck::from_bytes::<ValveVal>(&data);
-      println!("Valve Info: {:?}", valve_info);
+      log::debug!("Valve Info: {:?}", valve_info);
       if let Err(e) = app_handle.emit("valve_info", valve_info) {
-        eprintln!("Failed to emit valve info: {}", e);
+        log::error!("Failed to emit valve info: {}", e);
       }
     }))
     .await
@@ -108,21 +110,36 @@ async fn reboot_valve() -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn start_valve_ota(app_handle: tauri::AppHandle, file_path: String) -> Result<(), String> {
+async fn start_valve_ota(app_handle: tauri::AppHandle) -> Result<(), String> {
   let ble_transfer = BleTransfer::new()
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   let mut ota_impl = SampleOta::new(Arc::new(ble_transfer));
 
-  ota_impl.start_ota(app_handle, file_path).await
+  ota_impl.start_ota(app_handle).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_log::Builder::new().build())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
+    .plugin(
+      tauri_plugin_log::Builder::new()
+        .level(log::LevelFilter::Info)
+        .level_for("tauri_bluetooth_tool_lib", LevelFilter::Trace)
+        .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+        // .with_colors(
+        //   ColoredLevelConfig::new()
+        //     .trace(Color::Blue)
+        //     .debug(Color::Magenta)
+        //     .info(Color::Green),
+        // )
+        .build(),
+    )
     .invoke_handler(tauri::generate_handler![
       submit_valve_form,
       start_valve_info,

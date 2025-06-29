@@ -28,8 +28,7 @@ export default function ValveForm({ deviceName }: { deviceName: string }) {
     const data = {
       ...values,
       count: Number(values.count), // 将 count 转换为数字
-    };
-    console.log("提交的表单数据:", data);
+    };    
     try {
       await invoke<string>("submit_valve_form", { formData: data });
       toast.success("配置成功！");

@@ -45,12 +45,10 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
             <button
               onClick={() => {
                 invoke('reboot_valve')
-                  .then(() => {
-                    console.log('reboot_valve invoked');
+                  .then(() => {                    
                     toast.success('设备重启命令已发送，请稍候');
                   })
-                  .catch((error) => {
-                    console.error('Error invoking reboot_valve:', error);
+                  .catch((error) => {                    
                     toast.error(`发送设备重启命令失败，请稍后重试: ${error}`);
                   });
               }}
