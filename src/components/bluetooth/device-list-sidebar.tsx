@@ -85,6 +85,7 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
         onDeviceConnected(deviceName);
       } catch (e) {
         error(`Failed to connect to device ${deviceAddress}: ${e}`);
+        toast.error(`Failed to connect to device ${deviceAddress}: ${e}`);
         disconnect();
         setConnectedDeviceAddress(null);
       }

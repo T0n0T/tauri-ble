@@ -8,13 +8,13 @@ import { Separator } from "@/components/ui/separator";
 
 interface ValveInfo {
     total_ticks: number;
-    position: number;
+    current_status: number;
 }
 
 export default function ValveInfo() {
     const [valveInfo, setValveInfo] = useState<ValveInfo>({
         total_ticks: 0,
-        position: 0,
+        current_status: 0,
     });
     const setup = async () => {
         try {
@@ -49,15 +49,23 @@ export default function ValveInfo() {
                 <div className="text-4xl text-blue-400">{valveInfo.total_ticks * 60}</div>
             </div>
             <Separator orientation="vertical" />
-            <div className="flex flex-col items-center gap-5">
-                <p className="text-5xl font-semibold">圈数</p>
-                <div className="text-6xl text-blue-400">{Math.floor(valveInfo.total_ticks / 6)}</div>
+            <div className="flex flex-col items-center gap-4">
+                <p className="text-5xl font-semibold">状态</p>
+                <div className="text-6xl text-blue-400">
+                    {valveInfo.current_status === 0 && (
+                        <p className="text-red-400">关</p>
+                    )}
+                    {valveInfo.current_status === 1 && (
+                        <p className="text-green-400">开</p>
+                    )}
+                </div>
             </div>
             <Separator orientation="vertical" />
-            <div className="flex flex-col items-center gap-4">
-                <p className="text-3xl font-semibold">位置</p>
-                <div className="text-4xl text-blue-400">{valveInfo.position * 60}</div>
+            <div className="flex flex-col items-center gap-5">
+                <p className="text-3xl font-semibold">圈数</p>
+                <div className="text-4xl text-blue-400">{Math.floor(valveInfo.total_ticks / 6)}</div>
             </div>
+
         </div>
     )
 }

@@ -38,13 +38,21 @@ async fn do_request_response(
   let (tx, mut rx) = mpsc::channel::<u16>(1);
   transfer.unsubscribe().await.ok();
   transfer
-    .subscribe(Arc::new(move |data: Vec<u8>| match data.as_slice() {
-      [b0, b1, ..] => {
+    .subscribe(Arc::new(move |data: Vec<u8>| {
+      println!("recv data: {:x?}", data);
+      match data.as_slice() {
+      [b0, b1, rest @ ..] => { // 捕获剩余数据
         let response_code = u16::from_le_bytes([*b0, *b1]);
         if response_code == CMD_OK || response_code == CMD_ERR {
           let _ = tx.blocking_send(response_code);
+          // 如果有剩余数据，并且回调存在，则调用回调
+          if !rest.is_empty() {
+            if let Some(cb) = callback.clone() {
+              cb(rest.to_vec()); // 将剩余数据传递给回调
+            }
+          }
         } else if let Some(cb) = callback.clone() {
-          cb(data);
+          cb(data); // 如果不是CMD_OK或CMD_ERR，则传递整个数据
         }
       }
       _ => {
@@ -52,7 +60,7 @@ async fn do_request_response(
           cb(data);
         }
       }
-    }))
+    }}))
     .await
     .map_err(|e| format!("Failed to start valve info: {}", e))?;
 
