@@ -10,16 +10,16 @@ import { toast } from "sonner";
 
 const formSchema = z.object({
   model: z.string().min(1, { message: "阀门型号不能为空" }),
-  count: z.string().regex(/^\d+$/, { message: "圈数阈值必须是数字" }).min(1, { message: "圈数阈值不能为空" }),
+  tick: z.string().regex(/^\d+$/, { message: "圈数阈值必须是数字" }).min(1, { message: "圈数阈值不能为空" }),
   dir: z.boolean(),
 });
 
-export default function ValveForm({ deviceName }: { deviceName: string }) {
+export default function ValveConfig({ deviceName }: { deviceName: string }) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       model: "",
-      count: "",
+      tick: "",
       dir: false,
     },
   });
@@ -27,7 +27,7 @@ export default function ValveForm({ deviceName }: { deviceName: string }) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const data = {
       ...values,
-      count: Number(values.count), // 将 count 转换为数字
+      count: Number(values.tick), // 将 count 转换为数字
     };    
     try {
       await invoke<string>("submit_valve_form", { formData: data });
@@ -59,7 +59,7 @@ export default function ValveForm({ deviceName }: { deviceName: string }) {
           />
           <FormField
             control={form.control}
-            name="count"
+            name="tick"
             render={({ field }) => (
               <FormItem>
                 <div className="flex gap-4 items-center">

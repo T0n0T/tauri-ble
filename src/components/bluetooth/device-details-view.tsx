@@ -7,8 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { OtaProgressProvider } from "@/context/OtaProgressContext";
 import DeviceOta from "@/components/bluetooth/device-ota";
-import DeviceInfo from "@/components/bluetooth/device-info";
-import ValveForm from "@/forms/valve-form";
+import ValveInfo from "@/components/device/valve/valve-info";
+import ValveConfig from "@/components/device/valve/valve-conig";
 import { toast } from 'sonner';
 
 interface DeviceDetailsViewProps {
@@ -33,13 +33,13 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
                 <TabsTrigger value="info">实时数据</TabsTrigger>
               </TabsList>
               <TabsContent value="command" className="flex-grow mt-4">
-                <ValveForm deviceName={deviceName} />
+                <ValveConfig deviceName={deviceName} />
               </TabsContent>
               <TabsContent value="ota" className="flex-grow mt-4">
                 <DeviceOta></DeviceOta>
               </TabsContent>
               <TabsContent value="info" className="flex-grow mt-4">
-                <DeviceInfo></DeviceInfo>
+                <ValveInfo></ValveInfo>
               </TabsContent>
             </Tabs>
             <button

@@ -7,6 +7,7 @@ import DeviceCard from "./device-card";
 import { info, error } from '@tauri-apps/plugin-log';
 import { BleDevice, startScan, stopScan, connect, disconnect } from '@mnlphlp/plugin-blec';
 import { toast } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
 interface DeviceListSidebarProps {
   onDeviceConnected: (deviceName: string) => void;
   onDeviceDisconnected: (deviceName: string) => void;
@@ -77,12 +78,14 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
           const deviceName = devices.find(d => d.address === deviceAddress)?.name || deviceAddress;
           onDeviceDisconnected(deviceName);
         });
+        await invoke("ping");
         info(`Connected to device: ${deviceAddress}`);
         setConnectedDeviceAddress(deviceAddress);
         const deviceName = connectedDevice.name || connectedDevice.address;
         onDeviceConnected(deviceName);
       } catch (e) {
         error(`Failed to connect to device ${deviceAddress}: ${e}`);
+        disconnect();
         setConnectedDeviceAddress(null);
       }
     }

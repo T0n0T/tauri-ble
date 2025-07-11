@@ -11,7 +11,7 @@ interface ValveInfo {
     position: number;
 }
 
-export default function DeviceInfo() {
+export default function ValveInfo() {
     const [valveInfo, setValveInfo] = useState<ValveInfo>({
         total_ticks: 0,
         position: 0,

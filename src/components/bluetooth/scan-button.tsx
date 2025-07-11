@@ -18,7 +18,7 @@ export default function ScanButton({ onScanToggle }: ScanButtonProps) {
 
   return (
     <Button onClick={handleClick} className="w-full">
-      {isScanning ? "暂停扫描" : "开始扫描"}
+      {isScanning === 1 ? "暂停扫描" : "开始扫描"}
     </Button>
   );
 }
