@@ -289,13 +289,6 @@ impl Ota for SampleOta {
         .map_err(|e| format!("Failed to read file bytes: {}", e))?,
     );
 
-    // let file_data = Arc::new(
-    //   fs::read(&file_path)
-    //     .await
-    //     .map_err(|e| format!("Failed to read file: {}", e))?,
-    // );
-
-
     let mcu_state_sender_clone = self.mcu_state_sender.clone();
     let total_blocks = (file_data.len() + DFU_PAGE_LEN - 1) / DFU_PAGE_LEN;
 

@@ -94,7 +94,7 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
   return (
     <Sidebar className="flex flex-col h-full">
       <div className="flex-grow overflow-y-auto p-4 space-y-2">
-        <h2 className="text-lg font-semibold mb-4">Available Devices</h2>
+        <h2 className="text-lg text-center font-semibold mb-4">Available Devices</h2>
         {devices.length === 0 && isScanning !== 1 && (
           <p className="text-gray-500">点击“开始扫描”查找设备。</p>
         )}
