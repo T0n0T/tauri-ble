@@ -63,7 +63,7 @@ async fn do_request_response(
       }
     }))
     .await
-    .map_err(|e| format!("Failed to start valve info: {}", e))?;
+    .map_err(|e| format!("Failed to subscirbe: {}", e))?;
 
   if let Err(e) = transfer.send(command_str.as_bytes()).await {
     if !keep_subscribe {
