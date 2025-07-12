@@ -148,7 +148,7 @@ impl SampleOta {
             .send(&DFU_PREAMBLE)
             .await
             .map_err(|e| format!("OTA send failed: {:?}", e))?;
-          println!("State: SendPreamble -> Preamble sent, waiting for MCU response");
+          info!("State: SendPreamble -> Preamble sent, waiting for MCU response");
           self.state = DFUState::SendTotalBlocks;
         }
       }

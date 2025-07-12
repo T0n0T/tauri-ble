@@ -32,9 +32,10 @@ pub fn run() {
       commands::ping::ping,
       commands::reboot::reboot_valve,
       commands::valve_config::valve_configure,
+      commands::valve_config::valve_readconfig,
       commands::valve_config::valve_refactory,
-      commands::valve_config::valve_tunning_start,
-      commands::valve_config::valve_tunning_stop,
+      commands::valve_config::valve_tuning_start,
+      commands::valve_config::valve_tuning_stop,
       commands::valve_info::start_valve_info,
       commands::valve_info::stop_valve_info,
     ])

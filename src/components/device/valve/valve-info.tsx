@@ -5,20 +5,16 @@ import { listen } from "@tauri-apps/api/event";
 import { info, error } from '@tauri-apps/plugin-log';
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
-
-interface ValveInfo {
-    total_ticks: number;
-    current_status: number;
-}
+import { ValveVal } from "@/types/valve";
 
 export default function ValveInfo() {
-    const [valveInfo, setValveInfo] = useState<ValveInfo>({
+    const [valveInfo, setValveInfo] = useState<ValveVal>({
         total_ticks: 0,
         current_status: 0,
     });
     const setup = async () => {
         try {
-            await invoke<ValveInfo>('start_valve_info');
+            await invoke<ValveVal>('start_valve_info');
             info('start_valve_info invoked');
         } catch (e) {
             error(`Error invoking get_valve_info: ${e}`);
@@ -28,7 +24,7 @@ export default function ValveInfo() {
     useEffect(() => {
         // 监听事件
         const unlisten = listen('valve_info', (event) => {
-            const data = event.payload as ValveInfo;
+            const data = event.payload as ValveVal;
             setValveInfo(data);
         });
 

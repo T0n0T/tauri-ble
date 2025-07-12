@@ -6,7 +6,7 @@ use tauri::Emitter;
 #[tauri::command]
 pub async fn valve_configure(config: ValveConfig) -> Result<(), String> {
   let payload = serde_json::to_string(&config)
-    .inspect(|json| println!("Serialized JSON: {}", json))
+    .inspect(|json| log::info!("Serialized JSON: {}", json))
     .map(|json| format!("config_write {}\r\n", json)) // 拼接前缀
     .map_err(|e| format!("Serialization failed: {}", e))?;
 
@@ -14,6 +14,33 @@ pub async fn valve_configure(config: ValveConfig) -> Result<(), String> {
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   do_request_response(Arc::new(ble_transfer), &payload, 3, false, None).await
+}
+
+#[tauri::command]
+pub async fn valve_readconfig(app_handle: tauri::AppHandle) -> Result<(), String> {
+  let ble_transfer = BleTransfer::new()
+    .await
+    .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
+  do_request_response(
+    Arc::new(ble_transfer),
+    "config_read\r\n",
+    3,
+    false,
+    Some(Arc::new(move |data: Vec<u8>| {
+      match serde_json::from_slice::<ValveConfig>(&data) {
+        Ok(valve_config) => {
+          log::debug!("Valve config: {:?}", valve_config);
+          if let Err(e) = app_handle.emit("valve_config", valve_config) {
+            log::error!("Failed to emit valve config: {}", e);
+          }
+        }
+        Err(e) => {
+          log::error!("Failed to parse valve config: {}", e);
+        }
+      }
+    })),
+  )
+  .await
 }
 
 #[tauri::command]
@@ -32,13 +59,13 @@ pub async fn valve_refactory() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn valve_tunning_start(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub async fn valve_tuning_start(app_handle: tauri::AppHandle) -> Result<(), String> {
   let ble_transfer = BleTransfer::new()
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   do_request_response(
     Arc::new(ble_transfer),
-    "valve_tunning 1\r\n",
+    "valve_tuning 1\r\n",
     3,
     true,
     Some(Arc::new(move |data: Vec<u8>| {
@@ -52,7 +79,7 @@ pub async fn valve_tunning_start(app_handle: tauri::AppHandle) -> Result<(), Str
       }
       let valve_info: ValveVal = *bytemuck::from_bytes::<ValveVal>(&data);
       log::debug!("Valve Info: {:?}", valve_info);
-      if let Err(e) = app_handle.emit("valve_tunning", valve_info) {
+      if let Err(e) = app_handle.emit("valve_tuning", valve_info) {
         log::error!("Failed to emit valve info: {}", e);
       }
     })),
@@ -61,13 +88,13 @@ pub async fn valve_tunning_start(app_handle: tauri::AppHandle) -> Result<(), Str
 }
 
 #[tauri::command]
-pub async fn valve_tunning_stop() -> Result<(), String> {
+pub async fn valve_tuning_stop() -> Result<(), String> {
   let ble_transfer = BleTransfer::new()
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
   do_request_response(
     Arc::new(ble_transfer),
-    "valve_tunning 0\r\n",
+    "valve_tuning 0\r\n",
     3,
     false,
     None,

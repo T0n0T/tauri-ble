@@ -1,9 +1,9 @@
-use crate::transfer::{Transfer, ble::BleTransfer};
+use crate::transfer::Transfer;
+use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
-use serde::{Deserialize, Serialize};
-use bytemuck::{Pod, Zeroable};
 
 pub mod ota;
 pub mod ping;
@@ -14,10 +14,10 @@ pub mod valve_info;
 const CMD_OK: u16 = 0xcafe;
 const CMD_ERR: u16 = 0xdead;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValveConfig {
   model: String,
-  count: u32,
+  tick: u32,
   dir: bool,
 }
 
@@ -39,28 +39,30 @@ async fn do_request_response(
   transfer.unsubscribe().await.ok();
   transfer
     .subscribe(Arc::new(move |data: Vec<u8>| {
-      println!("recv data: {:x?}", data);
+      println!("recv {:x?}", data);
       match data.as_slice() {
-      [b0, b1, rest @ ..] => { // 捕获剩余数据
-        let response_code = u16::from_le_bytes([*b0, *b1]);
-        if response_code == CMD_OK || response_code == CMD_ERR {
-          let _ = tx.blocking_send(response_code);
-          // 如果有剩余数据，并且回调存在，则调用回调
-          if !rest.is_empty() {
-            if let Some(cb) = callback.clone() {
-              cb(rest.to_vec()); // 将剩余数据传递给回调
+        [b0, b1, rest @ ..] => {
+          // 捕获剩余数据
+          let response_code = u16::from_le_bytes([*b0, *b1]);
+          if response_code == CMD_OK || response_code == CMD_ERR {
+            let _ = tx.blocking_send(response_code);
+            // 如果有剩余数据，并且回调存在，则调用回调
+            if !rest.is_empty() {
+              if let Some(cb) = callback.clone() {
+                cb(rest.to_vec()); // 将剩余数据传递给回调
+              }
             }
+          } else if let Some(cb) = callback.clone() {
+            cb(data); // 如果不是CMD_OK或CMD_ERR，则传递整个数据
           }
-        } else if let Some(cb) = callback.clone() {
-          cb(data); // 如果不是CMD_OK或CMD_ERR，则传递整个数据
+        }
+        _ => {
+          if let Some(cb) = callback.clone() {
+            cb(data);
+          }
         }
       }
-      _ => {
-        if let Some(cb) = callback.clone() {
-          cb(data);
-        }
-      }
-    }}))
+    }))
     .await
     .map_err(|e| format!("Failed to start valve info: {}", e))?;
 
@@ -74,8 +76,10 @@ async fn do_request_response(
   let result = match timeout(Duration::from_secs(time_wait), rx.recv()).await {
     Ok(Some(response_code)) => {
       if response_code == CMD_OK {
+        log::info!("Successfully execuate command:{}", command_str);
         Ok(())
       } else if response_code == CMD_ERR {
+        log::error!("Fail to execuate command:{}, receive CMD_ERR", command_str);
         Err(format!("Received CMD_ERR"))
       } else {
         // This case should ideally be handled by the callback, but as a fallback
@@ -83,11 +87,24 @@ async fn do_request_response(
         Err(format!("Received unknown response: {:?}", response_code))
       }
     }
-    Ok(None) => Err(format!(
-      "Channel closed before receiving response after {} seconds",
-      time_wait
-    )),
-    Err(_) => Err(format!("Response timeout in {} seconds", time_wait)),
+    Ok(None) => {
+      log::error!(
+        "Fail to execuate command:{}, without any response",
+        command_str
+      );
+      Err(format!(
+        "Channel closed before receiving response after {} seconds",
+        time_wait
+      ))
+    }
+    Err(_) => {
+      log::error!(
+        "Fail to execuate command:{}, timeout {} without any response",
+        time_wait,
+        command_str
+      );
+      Err(format!("Response timeout in {} seconds", time_wait))
+    }
   };
 
   if !keep_subscribe {
