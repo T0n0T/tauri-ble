@@ -39,7 +39,6 @@ async fn do_request_response(
   transfer.unsubscribe().await.ok();
   transfer
     .subscribe(Arc::new(move |data: Vec<u8>| {
-      println!("recv {:x?}", data);
       match data.as_slice() {
         [b0, b1, rest @ ..] => {
           // 捕获剩余数据

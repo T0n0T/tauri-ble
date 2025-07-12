@@ -45,7 +45,7 @@ export default function ValveConfig({ deviceName }: { deviceName: string }) {
           toast.error("标定开始失败")
         }
       } else {
-        toast.info("valve_tuning_stop")
+        toast.info("停止标定")
         try {
           invoke("valve_tuning_stop")
         } catch (error) {
@@ -99,7 +99,6 @@ export default function ValveConfig({ deviceName }: { deviceName: string }) {
 
     return () => {
       unlisten.then((f) => f());
-      console.log(`clear readconfig`)
     };
   }, [form]);
 
