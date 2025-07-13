@@ -1,7 +1,9 @@
 use async_trait::async_trait;
+use futures::TryFutureExt;
+use tauri::Emitter;
 use std::sync::Arc;
-use tauri_plugin_blec::models::WriteType;
 use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 
 use super::Transfer;
 
@@ -9,6 +11,13 @@ const READ_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000ffe1-0000-1000-8000-0080
 const WRITE_CHARACTERISTIC_UUID: Uuid = uuid::uuid!("0000ffe2-0000-1000-8000-00805f9b34fb");
 
 const BLE_MTU: usize = 247 - 3;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BleDevice {
+  name: String,
+  address: String,
+  isconnected: bool,
+}
 
 pub struct BleTransfer {
   handler: &'static tauri_plugin_blec::Handler,
@@ -68,7 +77,7 @@ impl Transfer for BleTransfer {
     if data.len() <= self.mtu {
       self
         .handler
-        .send_data(WRITE_CHARACTERISTIC_UUID, data, WriteType::WithResponse)
+        .send_data(WRITE_CHARACTERISTIC_UUID, data, tauri_plugin_blec::models::WriteType::WithResponse)
         .await
         .map_err(|e| format!("BLE send failed: {:?}", e))?;
       return Ok(());
@@ -93,8 +102,8 @@ impl Transfer for BleTransfer {
     &self,
     callback: Arc<dyn Fn(Vec<u8>) + Send + Sync + 'static>,
   ) -> Result<(), String> {
-    tauri_plugin_blec::get_handler()
-      .map_err(|e| format!("BLE handler unavailable: {:?}", e))?
+    self
+      .handler
       .subscribe(READ_CHARACTERISTIC_UUID, move |data| {
         callback(data);
       })
@@ -109,4 +118,60 @@ impl Transfer for BleTransfer {
       .await
       .map_err(|e| format!("BLE unsubscribe failed: {:?}", e))
   }
+}
+
+#[tauri::command]
+pub async fn connect(app_handle: tauri::AppHandle, device: BleDevice) -> Result<(), String> {
+  let handler =
+    tauri_plugin_blec::get_handler().map_err(|e| format!("BLE unavailable: {:?}", e))?;
+  
+  const MAX_RETRIES: usize = 3;
+  const RETRY_DELAY_MS: u64 = 1000;
+  
+  let mut retry_count = 0;
+  let mut last_error = String::new();
+  
+  while retry_count < MAX_RETRIES {
+    let mut _device = device.clone();
+    
+    match handler
+      .connect(
+        &device.address,
+        tauri_plugin_blec::OnDisconnectHandler::Async(Box::pin({
+          let app_handle = app_handle.clone();
+          let mut device = device.clone();
+          async move {
+            device.isconnected = false;
+            let _ = app_handle.emit("ble_status", device);
+          }
+        })),
+      )
+      .await
+    {
+      Ok(_) => {
+        _device.isconnected = true;
+        let _ = app_handle.emit("ble_status", _device);
+        return Ok(());
+      }
+      Err(e) => {
+        retry_count += 1;
+        last_error = format!("BLE connect {} failed: {:?}", device.address, e);
+        
+        if retry_count < MAX_RETRIES {
+          tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+        }
+      }
+    }
+  }
+  
+  Err(format!("{} after {} retries", last_error, MAX_RETRIES))
+}
+
+#[tauri::command]
+pub async fn disconnect() -> Result<(), String> {
+  tauri_plugin_blec::get_handler()
+    .map_err(|e| format!("BLE unavailable: {:?}", e))?
+    .disconnect()
+    .map_err(|e| format!("BLE disconnect failed: {:?}", e))
+    .await
 }

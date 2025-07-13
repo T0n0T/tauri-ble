@@ -28,6 +28,8 @@ pub fn run() {
         .build(),
     )
     .invoke_handler(tauri::generate_handler![
+      transfer::ble::connect,
+      transfer::ble::disconnect,
       commands::ota::start_valve_ota,
       commands::ping::ping,
       commands::reboot::reboot_valve,

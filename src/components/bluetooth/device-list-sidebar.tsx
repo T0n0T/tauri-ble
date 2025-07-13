@@ -8,12 +8,8 @@ import { info, error } from '@tauri-apps/plugin-log';
 import { BleDevice, startScan, stopScan, connect, disconnect } from '@mnlphlp/plugin-blec';
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
-interface DeviceListSidebarProps {
-  onDeviceConnected: (deviceName: string) => void;
-  onDeviceDisconnected: (deviceName: string) => void;
-}
 
-export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnected }: DeviceListSidebarProps) {
+export default function DeviceListSidebar() {
   const [devices, setDevices] = useState<BleDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(0);
@@ -58,35 +54,27 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
     }
   };
 
-  const handleDeviceSelect = async (deviceAddress: string) => {
-    if (connectedDeviceAddress && connectedDeviceAddress !== deviceAddress) {
+  const handleDeviceSelect = async (dev: BleDevice) => {
+    if (connectedDeviceAddress && connectedDeviceAddress !== dev.address) {
       try {
-        await disconnect();
+        await invoke("disconnect");
         info(`Disconnected from previous device: ${connectedDeviceAddress}`);
       } catch (e) {
         error(`Failed to disconnect from previous device ${connectedDeviceAddress}: ${e}`);
       }
     }
 
-    setSelectedDeviceId(deviceAddress);
-    const connectedDevice = devices.find(d => d.address === deviceAddress);
+    setSelectedDeviceId(dev.address);
+    const connectedDevice = devices.find(d => d.address === dev.address);
     if (connectedDevice) {
       try {
-        await connect(deviceAddress, () => {
-          info(`Disconnected from device: ${deviceAddress}`);
-          setConnectedDeviceAddress(null); // Clear connected device on disconnect
-          const deviceName = devices.find(d => d.address === deviceAddress)?.name || deviceAddress;
-          onDeviceDisconnected(deviceName);
-        });
-        await invoke("ping");
-        info(`Connected to device: ${deviceAddress}`);
-        setConnectedDeviceAddress(deviceAddress);
-        const deviceName = connectedDevice.name || connectedDevice.address;
-        onDeviceConnected(deviceName);
+        await invoke("connect", { device: { name: dev.name, address: dev.address, isconnected: false } });
+        info(`Connected to device: ${dev.name}(${dev.address})`);
+        setConnectedDeviceAddress(dev.address);
       } catch (e) {
-        error(`Failed to connect to device ${deviceAddress}: ${e}`);
-        toast.error(`Failed to connect to device ${deviceAddress}: ${e}`);
-        disconnect();
+        error(`Failed to connect to device ${dev.name}(${dev.address}): ${e}`);
+        toast.error(`Failed to connect to device ${dev.name}: ${e}`);
+        invoke("disconnect");
         setConnectedDeviceAddress(null);
       }
     }
@@ -110,7 +98,7 @@ export default function DeviceListSidebar({ onDeviceConnected, onDeviceDisconnec
             rssi={device.rssi}
             deviceType={"BLE"} // Assuming all devices are BLE for now
             isSelected={selectedDeviceId === device.address}
-            onSelect={() => handleDeviceSelect(device.address)}
+            onSelect={() => handleDeviceSelect(device)}
           />
         ))}
       </div>

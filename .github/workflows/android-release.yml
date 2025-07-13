@@ -8,7 +8,7 @@ on:
 jobs:
   release-android:
     runs-on: ubuntu-22.04
-    container: mingc/android-build-box:latest
+    container: reactnativecommunity/react-native-android:latest
     permissions:
       contents: write
 

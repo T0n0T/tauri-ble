@@ -37,3 +37,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+*.jks
+*.apk
+*.apk.idsig

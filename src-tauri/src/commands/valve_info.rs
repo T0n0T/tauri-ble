@@ -1,5 +1,5 @@
 use super::{ValveVal, do_request_response};
-use crate::transfer::{Transfer, ble::BleTransfer};
+use crate::transfer::ble::BleTransfer;
 use std::sync::Arc;
 use tauri::Emitter;
 
