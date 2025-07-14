@@ -1,5 +1,5 @@
-use crate::transfer::ble::BleTransfer;
 use super::do_request_response;
+use crate::transfer::ble::BleTransfer;
 use std::sync::Arc;
 
 #[tauri::command]

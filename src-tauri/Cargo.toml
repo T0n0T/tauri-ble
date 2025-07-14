@@ -32,3 +32,4 @@ tauri-plugin-fs = "2"
 tauri-plugin-log = { version = "2", features = ["colored"] }
 log = "0.4"
 fern = "0.7.1"
+tauri-plugin-opener = "2"

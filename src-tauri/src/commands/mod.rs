@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 
+pub mod open;
 pub mod ota;
 pub mod ping;
 pub mod reboot;

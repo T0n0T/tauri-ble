@@ -9,7 +9,7 @@ mod transfer;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .plugin(tauri_plugin_log::Builder::new().build())
+    .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
@@ -30,6 +30,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       transfer::ble::connect,
       transfer::ble::disconnect,
+      commands::open::openlog,
       commands::ota::start_valve_ota,
       commands::ping::ping,
       commands::reboot::reboot_valve,

@@ -5,23 +5,35 @@ import Image from "next/image";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { OtaProgressProvider } from "@/context/OtaProgressContext";
 import DeviceOta from "@/components/bluetooth/device-ota";
 import ValveInfo from "@/components/device/valve/valve-info";
 import ValveConfig from "@/components/device/valve/valve-conig";
 import { toast } from 'sonner';
+import { Coffee } from 'lucide-react';
+import { useCallback } from 'react';
 
 interface DeviceDetailsViewProps {
   deviceName: string | null;
 }
 
 export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps) {
+  const loghandle = useCallback(async () => {
+    try {
+      await invoke("openlog")
+      console.log("打开日志成功")
+    } catch (error) {
+      toast.error("打开日志失败：" + error);
+    }
+  }, [])
+
   return (
     <>
       <header className="flex items-center justify-between p-4 border-b">
         <SidebarTrigger />
         <h1 className="text-lg font-semibold">{deviceName || "未选择设备"}</h1>
-        <div></div>
+        <Button size="icon" variant="ghost" onClick={loghandle}><Coffee /></Button>
       </header>
       <main className="p-2 flex-grow flex flex-col items-center justify-center relative">
         {deviceName ?
@@ -45,10 +57,10 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
             <button
               onClick={() => {
                 invoke('reboot_valve')
-                  .then(() => {                    
+                  .then(() => {
                     toast.success('设备重启命令已发送，请稍候');
                   })
-                  .catch((error) => {                    
+                  .catch((error) => {
                     toast.error(`发送设备重启命令失败，请稍后重试: ${error}`);
                   });
               }}

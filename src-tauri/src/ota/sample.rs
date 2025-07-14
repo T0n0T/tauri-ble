@@ -1,13 +1,12 @@
 use crate::{ota::Ota, transfer::Transfer};
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
-use std::path::PathBuf;
 use std::time::Duration;
 use std::{io::Read, sync::Arc};
 use tauri::Emitter;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_fs::{FsExt, OpenOptions};
-use tokio::{fs, sync::watch, time::Instant};
+use tokio::{sync::watch, time::Instant};
 
 pub const DFU_PAGE_LEN: usize = 2048;
 pub const DFU_PREAMBLE: [u8; 4] = [0xAA, 0x55, 0xAA, 0x55];
@@ -270,13 +269,10 @@ impl SampleOta {
 
 #[async_trait]
 impl Ota for SampleOta {
-  async fn start_ota(
-    &mut self,
-    app_handle: tauri::AppHandle,    
-  ) -> Result<(), String> {
+  async fn start_ota(&mut self, app_handle: tauri::AppHandle) -> Result<(), String> {
     // Apps can fully manage entries within this directory with std::fs.
     let file_path = app_handle.dialog().file().blocking_pick_file().unwrap();
-    let mut opt= OpenOptions::new();
+    let mut opt = OpenOptions::new();
     opt.read(true);
     debug!("Starting OTA for file: {:?}", file_path);
     let file_data = Arc::new(

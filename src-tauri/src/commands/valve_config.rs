@@ -26,8 +26,8 @@ pub async fn valve_readconfig(app_handle: tauri::AppHandle) -> Result<(), String
     "config_read\r\n",
     3,
     false,
-    Some(Arc::new(move |data: Vec<u8>| {
-      match serde_json::from_slice::<ValveConfig>(&data) {
+    Some(Arc::new(
+      move |data: Vec<u8>| match serde_json::from_slice::<ValveConfig>(&data) {
         Ok(valve_config) => {
           log::debug!("Valve config: {:?}", valve_config);
           if let Err(e) = app_handle.emit("valve_config", valve_config) {
@@ -37,8 +37,8 @@ pub async fn valve_readconfig(app_handle: tauri::AppHandle) -> Result<(), String
         Err(e) => {
           log::error!("Failed to parse valve config: {}", e);
         }
-      }
-    })),
+      },
+    )),
   )
   .await
 }
@@ -92,12 +92,5 @@ pub async fn valve_tuning_stop() -> Result<(), String> {
   let ble_transfer = BleTransfer::new()
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
-  do_request_response(
-    Arc::new(ble_transfer),
-    "valve_tuning 0\r\n",
-    3,
-    false,
-    None,
-  )
-  .await
+  do_request_response(Arc::new(ble_transfer), "valve_tuning 0\r\n", 3, false, None).await
 }

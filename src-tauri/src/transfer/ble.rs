@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use futures::TryFutureExt;
-use tauri::Emitter;
-use std::sync::Arc;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::Emitter;
+use uuid::Uuid;
 
 use super::Transfer;
 
@@ -77,7 +77,11 @@ impl Transfer for BleTransfer {
     if data.len() <= self.mtu {
       self
         .handler
-        .send_data(WRITE_CHARACTERISTIC_UUID, data, tauri_plugin_blec::models::WriteType::WithResponse)
+        .send_data(
+          WRITE_CHARACTERISTIC_UUID,
+          data,
+          tauri_plugin_blec::models::WriteType::WithResponse,
+        )
         .await
         .map_err(|e| format!("BLE send failed: {:?}", e))?;
       return Ok(());
@@ -124,16 +128,16 @@ impl Transfer for BleTransfer {
 pub async fn connect(app_handle: tauri::AppHandle, device: BleDevice) -> Result<(), String> {
   let handler =
     tauri_plugin_blec::get_handler().map_err(|e| format!("BLE unavailable: {:?}", e))?;
-  
+
   const MAX_RETRIES: usize = 3;
   const RETRY_DELAY_MS: u64 = 1000;
-  
+
   let mut retry_count = 0;
   let mut last_error = String::new();
-  
+
   while retry_count < MAX_RETRIES {
     let mut _device = device.clone();
-    
+
     match handler
       .connect(
         &device.address,
@@ -156,14 +160,14 @@ pub async fn connect(app_handle: tauri::AppHandle, device: BleDevice) -> Result<
       Err(e) => {
         retry_count += 1;
         last_error = format!("BLE connect {} failed: {:?}", device.address, e);
-        
+
         if retry_count < MAX_RETRIES {
           tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
         }
       }
     }
   }
-  
+
   Err(format!("{} after {} retries", last_error, MAX_RETRIES))
 }
 
