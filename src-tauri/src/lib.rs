@@ -10,7 +10,7 @@ mod transfer;
 
 #[cfg(target_os = "android")]
 fn default_log_targets() -> Vec<tauri_plugin_log::Target> {
-  let log_dir = PathBuf::from("/sdcard/Android/data/com.bluetooth.tool/logs");  
+  let log_dir = PathBuf::from("/sdcard/Documents/com.bluetooth.tool/logs");  
   vec![
     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
