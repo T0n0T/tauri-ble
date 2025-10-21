@@ -9,7 +9,7 @@ services:
       - XDG_RUNTIME_DIR=/run/user/1000
       - WAYLAND_DISPLAY=wayland-1
       - CARGO_HOME=/root/.cargo
-      - HTTPS_PROXY=http://localhost:5780
+      - HTTPS_PROXY=http://localhost:7890
     volumes:
       - ../../.vscode-server:/root/.vscode-server
       - ../../.cargo:/root/.cargo

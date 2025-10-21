@@ -45,7 +45,6 @@ pub fn run() {
       commands::valve_info::start_valve_info,
       commands::valve_info::stop_valve_info,
     ])
-    .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
