@@ -42,7 +42,7 @@ export default function ValveInfo() {
         <div className="flex flex-row items-center justify-around w-full h-full p-4 space-x-1">
             <div className="flex flex-col items-center gap-4">
                 <p className="text-3xl font-semibold">角度</p>
-                <div className="text-4xl text-blue-400">{valveInfo.total_ticks * 60}</div>
+                <div className="text-4xl text-blue-400">{valveInfo.total_ticks * 12}</div>
             </div>
             <Separator orientation="vertical" />
             <div className="flex flex-col items-center gap-4">
@@ -59,7 +59,7 @@ export default function ValveInfo() {
             <Separator orientation="vertical" />
             <div className="flex flex-col items-center gap-5">
                 <p className="text-3xl font-semibold">圈数</p>
-                <div className="text-4xl text-blue-400">{Math.floor(valveInfo.total_ticks / 6)}</div>
+                <div className="text-4xl text-blue-400">{Math.floor(valveInfo.total_ticks / 30)}</div>
             </div>
 
         </div>

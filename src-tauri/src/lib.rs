@@ -41,7 +41,6 @@ pub fn run() {
       commands::valve_info::start_valve_info,
       commands::valve_info::stop_valve_info,
     ])
-    .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_blec::init())
@@ -51,7 +50,7 @@ pub fn run() {
         .level_for("tauri_bluetooth_tool_lib", LevelFilter::Trace)
         .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
-        .targets(default_log_targets())
+        // .targets(default_log_targets())
         // .with_colors(
         //   ColoredLevelConfig::new()
         //     .trace(Color::Blue)
