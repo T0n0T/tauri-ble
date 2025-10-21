@@ -9,11 +9,11 @@ mod ota;
 mod transfer;
 
 #[cfg(target_os = "android")]
-fn default_log_targets() -> tauri_plugin_log::Target {
-  tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
+fn default_log_targets() -> Vec<tauri_plugin_log::Target> {
+  vec![tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
     path: PathBuf::from("/sdcard/Documents/com.bluetooth.tool/logs"),
     file_name: None,
-  })
+  })]
 }
 
 #[cfg(not(target_os = "android"))]
