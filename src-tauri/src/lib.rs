@@ -50,7 +50,7 @@ pub fn run() {
         .level_for("tauri_bluetooth_tool_lib", LevelFilter::Trace)
         .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
-        // .targets(default_log_targets())
+        .targets(default_log_targets())
         // .with_colors(
         //   ColoredLevelConfig::new()
         //     .trace(Color::Blue)
