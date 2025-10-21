@@ -1,23 +1,19 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use fern::colors::{Color, ColoredLevelConfig};
 use log::LevelFilter;
-use tauri::Manager;
 use std::{path::PathBuf, vec};
+use tauri::Manager;
 
 mod commands;
 mod ota;
 mod transfer;
 
 #[cfg(target_os = "android")]
-fn default_log_targets() -> Vec<tauri_plugin_log::Target> {
-  let log_dir = PathBuf::from("/sdcard/Documents/com.bluetooth.tool/logs");  
-  vec![
-    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
-    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
-      path: log_dir,
-      file_name: None,
-    }),
-  ]
+fn default_log_targets() -> tauri_plugin_log::Target {
+  tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
+    path: PathBuf::from("/sdcard/Documents/com.bluetooth.tool/logs"),
+    file_name: None,
+  })
 }
 
 #[cfg(not(target_os = "android"))]
