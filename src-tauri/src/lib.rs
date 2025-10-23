@@ -40,6 +40,14 @@ pub fn run() {
       commands::valve_config::valve_tuning_stop,
       commands::valve_info::start_valve_info,
       commands::valve_info::stop_valve_info,
+      commands::channel_config::channel_configure,
+      commands::channel_config::channel_readconfig,
+      commands::channel_config::channel_refactory,
+      commands::airpressure_config::airpressure_configure,
+      commands::airpressure_config::airpressure_readconfig,
+      commands::airpressure_config::airpressure_refactory,
+      commands::airpressure_info::start_airpressure_info,
+      commands::airpressure_info::stop_airpressure_info,
     ])
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())

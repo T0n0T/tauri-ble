@@ -27,6 +27,7 @@ export default function DeviceListSidebar() {
               && newDevice.name !== ""
               && !newDevice.name.startsWith("hci")
               && !/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(newDevice.name)
+              && newDevice.name.includes("CYG")
             ) {
               console.log("New device found:", newDevice);
               updatedDevices.push(newDevice);

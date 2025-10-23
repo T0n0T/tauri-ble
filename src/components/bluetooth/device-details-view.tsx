@@ -9,6 +9,10 @@ import { OtaProgressProvider } from "@/context/OtaProgressContext";
 import DeviceOta from "@/components/bluetooth/device-ota";
 import ValveInfo from "@/components/device/valve/valve-info";
 import ValveConfig from "@/components/device/valve/valve-conig";
+import ChannelConfig from "@/components/device/channel/channel-config";
+import ChannelInfo from "@/components/device/channel/channel-info";
+import AirPressureConfig from "@/components/device/airpressure/airpressure-config";
+import AirPressureInfo from "@/components/device/airpressure/airpressure-info";
 import { toast } from 'sonner';
 import { useCallback } from 'react';
 
@@ -17,6 +21,58 @@ interface DeviceDetailsViewProps {
 }
 
 export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps) {
+  // 根据设备名称确定设备类型
+  const getDeviceType = (name: string | null) => {
+    if (!name) return 'unknown';
+    
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('valve')) return 'valve';
+    if (lowerName.includes('channel')) return 'channel';
+    if (lowerName.includes('airpressure')) return 'airpressure';
+    return 'unknown';
+  };
+
+  const deviceType = getDeviceType(deviceName);
+
+  // 根据设备类型渲染对应的配置组件
+  const renderConfigComponent = () => {
+    switch (deviceType) {
+      case 'valve':
+        return <ValveConfig deviceName={deviceName!} />;
+      case 'channel':
+        return <ChannelConfig deviceName={deviceName!} />;
+      case 'airpressure':
+        return <AirPressureConfig deviceName={deviceName!} />;
+      default:
+        return (
+          <div className="p-4">
+            <Label className="text-lg font-semibold text-center">未知设备类型 - {deviceName}</Label>
+          </div>
+        );
+    }
+  };
+
+  // 根据设备类型渲染对应的实时数据组件
+  const renderInfoComponent = () => {
+    switch (deviceType) {
+      case 'valve':
+        return <ValveInfo />;
+      case 'channel':
+        return <ChannelInfo />;
+      case 'airpressure':
+        return <AirPressureInfo />;
+      default:
+        return (
+          <div className="p-4">
+            <Label className="text-lg font-semibold">未知设备类型 - {deviceName}</Label>
+            <div className="mt-4">
+              <p>该设备类型暂不支持</p>
+            </div>
+          </div>
+        );
+    }
+  };
+
   return (
     <>
       <header className="flex items-center justify-between p-4 border-b">
@@ -34,13 +90,13 @@ export default function DeviceDetailsView({ deviceName }: DeviceDetailsViewProps
                 <TabsTrigger value="info">实时数据</TabsTrigger>
               </TabsList>
               <TabsContent value="command" className="flex-grow mt-4">
-                <ValveConfig deviceName={deviceName} />
+                {renderConfigComponent()}
               </TabsContent>
               <TabsContent value="ota" className="flex-grow mt-4">
                 <DeviceOta></DeviceOta>
               </TabsContent>
               <TabsContent value="info" className="flex-grow mt-4">
-                <ValveInfo></ValveInfo>
+                {renderInfoComponent()}
               </TabsContent>
             </Tabs>
             <button

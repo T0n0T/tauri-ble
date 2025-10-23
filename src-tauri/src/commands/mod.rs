@@ -10,6 +10,9 @@ pub mod ping;
 pub mod reboot;
 pub mod valve_config;
 pub mod valve_info;
+pub mod channel_config;
+pub mod airpressure_config;
+pub mod airpressure_info;
 
 const CMD_OK: u16 = 0xcafe;
 const CMD_ERR: u16 = 0xdead;
@@ -26,6 +29,23 @@ pub struct ValveConfig {
 pub struct ValveVal {
   total_ticks: i32,
   current_status: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelConfig {
+  model: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AirPressureConfig {
+  model: String,
+  pressure: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable, Serialize)]
+pub struct AirPressureVal {
+  current_pressure: f32,
 }
 
 async fn do_request_response(
