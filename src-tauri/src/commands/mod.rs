@@ -45,7 +45,7 @@ pub struct AirPressureConfig {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Serialize)]
 pub struct AirPressureVal {
-  current_pressure: f32,
+  current_pressure: u16,
 }
 
 async fn do_request_response(

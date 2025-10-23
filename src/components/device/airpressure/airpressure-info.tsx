@@ -41,7 +41,7 @@ export default function AirPressureInfo() {
     <div className="flex flex-row items-center justify-around w-full h-full p-4 space-x-1">
       <div className="flex flex-col items-center gap-4">
         <p className="text-3xl font-semibold">压力值</p>
-        <div className="text-4xl text-blue-400">{airPressureInfo.current_pressure} MPa</div>
+        <div className="text-4xl text-blue-400">{(airPressureInfo.current_pressure * 1.6 / 2000).toFixed(4)} MPa</div>
       </div>
     </div>
   )
