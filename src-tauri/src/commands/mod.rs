@@ -5,14 +5,14 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 
+pub mod airpressure_config;
+pub mod airpressure_info;
+pub mod channel_config;
 pub mod ota;
 pub mod ping;
 pub mod reboot;
 pub mod valve_config;
 pub mod valve_info;
-pub mod channel_config;
-pub mod airpressure_config;
-pub mod airpressure_info;
 
 const CMD_OK: u16 = 0xcafe;
 const CMD_ERR: u16 = 0xdead;

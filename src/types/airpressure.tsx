@@ -1,3 +1,3 @@
 export interface AirPressureVal {
-    current_pressure: number;
+  current_pressure: number;
 }

@@ -37,5 +37,12 @@ pub async fn stop_airpressure_info() -> Result<(), String> {
   let ble_transfer = BleTransfer::new()
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
-  do_request_response(Arc::new(ble_transfer), "airpressure_info 0\r\n", 3, false, None).await
+  do_request_response(
+    Arc::new(ble_transfer),
+    "airpressure_info 0\r\n",
+    3,
+    false,
+    None,
+  )
+  .await
 }

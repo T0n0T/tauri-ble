@@ -1,4 +1,4 @@
 export interface ValveVal {
-    total_ticks: number;
-    current_status: number;
+  total_ticks: number;
+  current_status: number;
 }

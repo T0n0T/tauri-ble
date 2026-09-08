@@ -1,19 +1,18 @@
 "use client";
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open } from '@tauri-apps/plugin-dialog';
-import { info, error } from '@tauri-apps/plugin-log';
+import { error } from "@tauri-apps/plugin-log";
+import Image from "next/image";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useOtaProgress } from "@/context/OtaProgressContext";
-import { toast } from 'sonner';
-import { useEffect } from "react";
-import Image from "next/image";
-
 
 export default function DeviceOta() {
-  const { otaProgress, setOtaProgress, otaInProgress, setOtaInProgress } = useOtaProgress();
+  const { otaProgress, setOtaProgress, otaInProgress, setOtaInProgress } =
+    useOtaProgress();
 
   useEffect(() => {
     const unlistenProgress = listen("ota_progress", (event) => {
@@ -34,7 +33,7 @@ export default function DeviceOta() {
       unlistenProgress.then((f) => f());
       unlistenError.then((f) => f());
     };
-  }, []);
+  }, [setOtaInProgress, setOtaProgress]);
 
   const handleFileSelect = async () => {
     setOtaInProgress(true);
@@ -47,7 +46,6 @@ export default function DeviceOta() {
       setOtaInProgress(false);
     }
   };
-
 
   return (
     <div className="flex items-center justify-center h-full">
@@ -67,11 +65,15 @@ export default function DeviceOta() {
               priority
             />
           </Button>
-          <p className="text-sm text-muted-foreground mt-2">点击图标选择固件文件</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            点击图标选择固件文件
+          </p>
           {otaInProgress && (
             <div className="mt-4 w-full">
               <Progress value={otaProgress} className="w-full" />
-              <p className="text-sm text-gray-500 mt-2 text-center">升级进度: {otaProgress}%</p>
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                升级进度: {otaProgress}%
+              </p>
             </div>
           )}
         </CardContent>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
-import DeviceListSidebar from "@/components/bluetooth/device-list-sidebar";
-import DeviceDetailsView from "@/components/bluetooth/device-details-view";
-import { Toaster, toast } from "sonner";
 import { listen } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
+import { Toaster, toast } from "sonner";
+import DeviceDetailsView from "@/components/bluetooth/device-details-view";
+import DeviceListSidebar from "@/components/bluetooth/device-list-sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 
 interface BleStatus {
   name: string;
@@ -23,7 +23,9 @@ export default function Home() {
 
 function LayoutContent() {
   const { setOpenMobile } = useSidebar();
-  const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
+  const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(
+    null,
+  );
   useEffect(() => {
     const connectUnlisten = listen("ble_status", (event) => {
       const device = event.payload as BleStatus;
@@ -40,7 +42,7 @@ function LayoutContent() {
     return () => {
       connectUnlisten.then((unlisten) => unlisten());
     };
-  }, []);
+  }, [setOpenMobile]);
 
   return (
     <>

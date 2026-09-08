@@ -55,6 +55,7 @@ impl Transfer for BleTransfer {
       .connect(
         self.mac.as_str(),
         tauri_plugin_blec::OnDisconnectHandler::None,
+        false,
       )
       .await
       .map_err(|e| format!("BLE connection failed: {:?}", e))?;
@@ -79,6 +80,7 @@ impl Transfer for BleTransfer {
         .handler
         .send_data(
           WRITE_CHARACTERISTIC_UUID,
+          None,
           data,
           tauri_plugin_blec::models::WriteType::WithResponse,
         )
@@ -97,7 +99,7 @@ impl Transfer for BleTransfer {
   async fn read(&self) -> Result<Vec<u8>, String> {
     self
       .handler
-      .recv_data(READ_CHARACTERISTIC_UUID)
+      .recv_data(READ_CHARACTERISTIC_UUID, None)
       .await
       .map_err(|e| format!("BLE read failed: {:?}", e))
   }
@@ -108,7 +110,7 @@ impl Transfer for BleTransfer {
   ) -> Result<(), String> {
     self
       .handler
-      .subscribe(READ_CHARACTERISTIC_UUID, move |data| {
+      .subscribe(READ_CHARACTERISTIC_UUID, None, move |data| {
         callback(data);
       })
       .await
@@ -138,17 +140,18 @@ pub async fn connect(app_handle: tauri::AppHandle, device: BleDevice) -> Result<
   while retry_count < MAX_RETRIES {
     let mut _device = device.clone();
 
+    let disconnect_app_handle = app_handle.clone();
+    let disconnect_device = device.clone();
+
     match handler
       .connect(
         &device.address,
-        tauri_plugin_blec::OnDisconnectHandler::Async(Box::pin({
-          let app_handle = app_handle.clone();
-          let mut device = device.clone();
-          async move {
-            device.isconnected = false;
-            let _ = app_handle.emit("ble_status", device);
-          }
-        })),
+        tauri_plugin_blec::OnDisconnectHandler::from_async(move || async move {
+          let mut device = disconnect_device;
+          device.isconnected = false;
+          let _ = disconnect_app_handle.emit("ble_status", device);
+        }),
+        false,
       )
       .await
     {

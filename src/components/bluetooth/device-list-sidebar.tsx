@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Sidebar } from "@/components/ui/sidebar";
-import ScanButton from "./scan-button";
-import DeviceCard from "./device-card";
-import { info, error } from '@tauri-apps/plugin-log';
-import { BleDevice, startScan, stopScan, connect, disconnect } from '@mnlphlp/plugin-blec';
-import { toast } from "sonner";
+import { type BleDevice, startScan, stopScan } from "@mnlphlp/plugin-blec";
 import { invoke } from "@tauri-apps/api/core";
+import { error, info } from "@tauri-apps/plugin-log";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Sidebar } from "@/components/ui/sidebar";
+import DeviceCard from "./device-card";
+import ScanButton from "./scan-button";
 
 export default function DeviceListSidebar() {
   const [devices, setDevices] = useState<BleDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(0);
-  const [connectedDeviceAddress, setConnectedDeviceAddress] = useState<string | null>(null);
+  const [connectedDeviceAddress, setConnectedDeviceAddress] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (isScanning === 1) {
@@ -22,12 +24,15 @@ export default function DeviceListSidebar() {
         setDevices((prev) => {
           const updatedDevices = [...prev];
           newDevices.forEach((newDevice) => {
-            if (!updatedDevices.some((d) => d.address === newDevice.address)
-              && newDevice.name
-              && newDevice.name !== ""
-              && !newDevice.name.startsWith("hci")
-              && !/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(newDevice.name)
-              && newDevice.name.includes("CYG")
+            if (
+              !updatedDevices.some((d) => d.address === newDevice.address) &&
+              newDevice.name &&
+              newDevice.name !== "" &&
+              !newDevice.name.startsWith("hci") &&
+              !/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(
+                newDevice.name,
+              ) &&
+              newDevice.name.includes("CYG")
             ) {
               console.log("New device found:", newDevice);
               updatedDevices.push(newDevice);
@@ -61,15 +66,19 @@ export default function DeviceListSidebar() {
         await invoke("disconnect");
         info(`Disconnected from previous device: ${connectedDeviceAddress}`);
       } catch (e) {
-        error(`Failed to disconnect from previous device ${connectedDeviceAddress}: ${e}`);
+        error(
+          `Failed to disconnect from previous device ${connectedDeviceAddress}: ${e}`,
+        );
       }
     }
 
     setSelectedDeviceId(dev.address);
-    const connectedDevice = devices.find(d => d.address === dev.address);
+    const connectedDevice = devices.find((d) => d.address === dev.address);
     if (connectedDevice) {
       try {
-        await invoke("connect", { device: { name: dev.name, address: dev.address, isconnected: false } });
+        await invoke("connect", {
+          device: { name: dev.name, address: dev.address, isconnected: false },
+        });
         info(`Connected to device: ${dev.name}(${dev.address})`);
         setConnectedDeviceAddress(dev.address);
       } catch (e) {
@@ -84,7 +93,9 @@ export default function DeviceListSidebar() {
   return (
     <Sidebar className="flex flex-col h-full">
       <div className="flex-grow overflow-y-auto p-4 space-y-2">
-        <h2 className="text-lg text-center font-semibold mb-4">Available Devices</h2>
+        <h2 className="text-lg text-center font-semibold mb-4">
+          Available Devices
+        </h2>
         {devices.length === 0 && isScanning !== 1 && (
           <p className="text-gray-500">点击“开始扫描”查找设备。</p>
         )}
@@ -97,7 +108,6 @@ export default function DeviceListSidebar() {
             deviceName={device.name || "Unknown Device"}
             macAddress={device.address}
             rssi={device.rssi}
-            deviceType={"BLE"} // Assuming all devices are BLE for now
             isSelected={selectedDeviceId === device.address}
             onSelect={() => handleDeviceSelect(device)}
           />
