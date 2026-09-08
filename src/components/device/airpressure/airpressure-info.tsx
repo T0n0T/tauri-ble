@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { error, info } from "@tauri-apps/plugin-log";
 import { useEffect, useState } from "react";
+import { enqueueRealtimeCommand } from "@/lib/realtime-command";
 import type { AirPressureVal } from "@/types/airpressure";
 
 export default function AirPressureInfo() {
@@ -11,28 +12,42 @@ export default function AirPressureInfo() {
     current_pressure: 0,
   });
   useEffect(() => {
-    const setup = async () => {
+    let active = true;
+    const setup = enqueueRealtimeCommand(async () => {
+      if (!active) return;
+
       try {
         await invoke<AirPressureVal>("start_airpressure_info");
-        info("start_airpressure_info invoked");
+        if (active) info("start_airpressure_info invoked");
       } catch (e) {
         error(`Error invoking start_airpressure_info: ${e}`);
       }
-    };
+    });
 
     // 监听事件
     const unlisten = listen("airpressure_info", (event) => {
+      if (!active) return;
       const data = event.payload as AirPressureVal;
       setAirPressureInfo(data);
     });
 
-    setup();
-
     return () => {
-      unlisten.then((f) => f());
-      invoke("stop_airpressure_info")
-        .then(() => info("stop_airpressure_info invoked"))
-        .catch((e) => error(`Error invoking stop_airpressure_info: ${e}`));
+      active = false;
+      void enqueueRealtimeCommand(async () => {
+        try {
+          (await unlisten)();
+        } catch (e) {
+          error(`Error removing airpressure_info listener: ${e}`);
+        }
+
+        await setup;
+        try {
+          await invoke("stop_airpressure_info");
+          info("stop_airpressure_info invoked");
+        } catch (e) {
+          error(`Error invoking stop_airpressure_info: ${e}`);
+        }
+      }).catch((e) => error(`Error cleaning up airpressure_info: ${e}`));
     };
   }, []);
 

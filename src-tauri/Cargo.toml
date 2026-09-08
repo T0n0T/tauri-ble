@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bluetooth-tool"
-version = "0.1.0"
+version = "0.3.1"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2024"
@@ -32,3 +32,8 @@ tauri-plugin-fs = "2.5.2"
 tauri-plugin-log = { version = "2.9.1", features = ["colored"] }
 log = "0.4.34"
 tauri-plugin-opener = "2.5.5"
+
+# Upstream tauri-plugin-blec 0.12.0 panics when Android delivers a late
+# notification after its Rust receiver has been closed.
+[patch.crates-io]
+tauri-plugin-blec = { path = "vendor/tauri-plugin-blec" }

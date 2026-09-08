@@ -1,4 +1,4 @@
-use super::{ValveVal, do_request_response};
+use super::{ValveVal, do_request_response, send_and_unsubscribe};
 use crate::transfer::ble::BleTransfer;
 use std::sync::Arc;
 use tauri::Emitter;
@@ -37,5 +37,5 @@ pub async fn stop_valve_info() -> Result<(), String> {
   let ble_transfer = BleTransfer::new()
     .await
     .map_err(|e| format!("Create BLE Transfer failed: {}", e))?;
-  do_request_response(Arc::new(ble_transfer), "valve_info 0\r\n", 3, false, None).await
+  send_and_unsubscribe(Arc::new(ble_transfer), "valve_info 0\r\n").await
 }

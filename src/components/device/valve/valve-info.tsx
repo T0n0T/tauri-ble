@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { error, info } from "@tauri-apps/plugin-log";
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
+import { enqueueRealtimeCommand } from "@/lib/realtime-command";
 import type { ValveVal } from "@/types/valve";
 
 export default function ValveInfo() {
@@ -13,28 +14,42 @@ export default function ValveInfo() {
     current_status: 0,
   });
   useEffect(() => {
-    const setup = async () => {
+    let active = true;
+    const setup = enqueueRealtimeCommand(async () => {
+      if (!active) return;
+
       try {
         await invoke<ValveVal>("start_valve_info");
-        info("start_valve_info invoked");
+        if (active) info("start_valve_info invoked");
       } catch (e) {
         error(`Error invoking get_valve_info: ${e}`);
       }
-    };
+    });
 
     // 监听事件
     const unlisten = listen("valve_info", (event) => {
+      if (!active) return;
       const data = event.payload as ValveVal;
       setValveInfo(data);
     });
 
-    setup();
-
     return () => {
-      unlisten.then((f) => f());
-      invoke("stop_valve_info")
-        .then(() => info("stop_valve_info invoked"))
-        .catch((e) => error(`Error invoking stop_valve_info: ${e}`));
+      active = false;
+      void enqueueRealtimeCommand(async () => {
+        try {
+          (await unlisten)();
+        } catch (e) {
+          error(`Error removing valve_info listener: ${e}`);
+        }
+
+        await setup;
+        try {
+          await invoke("stop_valve_info");
+          info("stop_valve_info invoked");
+        } catch (e) {
+          error(`Error invoking stop_valve_info: ${e}`);
+        }
+      }).catch((e) => error(`Error cleaning up valve_info: ${e}`));
     };
   }, []);
 
