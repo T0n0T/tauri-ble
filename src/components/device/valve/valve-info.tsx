@@ -42,12 +42,15 @@ export default function ValveInfo() {
           error(`Error removing valve_info listener: ${e}`);
         }
 
-        await setup;
         try {
-          await invoke("stop_valve_info");
-          info("stop_valve_info invoked");
-        } catch (e) {
-          error(`Error invoking stop_valve_info: ${e}`);
+          await setup;
+        } finally {
+          try {
+            await invoke("stop_valve_info");
+            info("stop_valve_info invoked");
+          } catch (e) {
+            error(`Error invoking stop_valve_info: ${e}`);
+          }
         }
       }).catch((e) => error(`Error cleaning up valve_info: ${e}`));
     };

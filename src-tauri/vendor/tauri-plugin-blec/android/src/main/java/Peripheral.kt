@@ -61,6 +61,9 @@ class Peripheral(
 
     // maxAttempts for writes; only counts actual failure, waiting on the BT-chip (WRITE_REQUEST_BUSY) does not count as an attempt
     private val maxAttempts = 100
+    // A missing onCharacteristicWrite callback must never cause an unbounded
+    // stream of duplicate writes.
+    private val maxCallbackWaitAttempts = 3
     private val writeRetryDelayMs = 50L
     private val writeCallbackWaitNoResponseMs = 500L
     private val writeCallbackWaitWithResponseMs = 750L
@@ -255,19 +258,17 @@ class Peripheral(
             Log.i("Peripheral", "onCharacteristicWrite for ${characteristic.uuid} with status $status")
             val key = Pair(characteristic.uuid, characteristic.service.uuid)
             
-            @Suppress("DEPRECATION")
-            val value = characteristic.value ?: ByteArray(0)
-
             val current = this@Peripheral.activeWrite
             if (current == null || current.key != key) {
                 Log.w("Peripheral", "Received stale write callback for $key, ignoring")
                 return
             }
 
-            var success = status == BluetoothGatt.GATT_SUCCESS
-            if (success && current.withResponse) {
-                success = value.contentEquals(current.data)
-            }
+            // The callback status is the authoritative result. On Android 13+
+            // the callback characteristic does not reliably expose the bytes
+            // just written, so comparing characteristic.value can turn a
+            // successful write into a retry loop.
+            val success = status == BluetoothGatt.GATT_SUCCESS
 
             if (success) {
                 Log.i("Peripheral", "Write with id $current.id succeeded!")
@@ -677,8 +678,26 @@ class Peripheral(
                     return
                 }
 
-                // Callback window elapsed without a response — resend.
+                // Callback window elapsed without a response. Bound retries
+                // even when the platform never delivers onCharacteristicWrite;
+                // timeout=0 means no caller deadline, not infinite BLE writes.
+                if (
+                    current.withResponse ||
+                    current.attempt >= maxCallbackWaitAttempts ||
+                    isWriteTimedOut(current)
+                ) {
+                    this.activeWrite = null
+                    current.invoke?.reject(
+                        "Write to characteristic ${current.key.first} failed after ${current.attempt + 1} attempts: callback timeout"
+                    )
+                    return processWriteQueue()
+                }
+                current.attempt += 1
                 current.timeSentAt = 0L
+                Log.w(
+                    "Peripheral",
+                    "Write on ${current.key.first} callback timed out, retrying attempt ${current.attempt}/$maxCallbackWaitAttempts"
+                )
             }
 
             val charac = current.characteristic

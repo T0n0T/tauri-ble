@@ -40,12 +40,15 @@ export default function AirPressureInfo() {
           error(`Error removing airpressure_info listener: ${e}`);
         }
 
-        await setup;
         try {
-          await invoke("stop_airpressure_info");
-          info("stop_airpressure_info invoked");
-        } catch (e) {
-          error(`Error invoking stop_airpressure_info: ${e}`);
+          await setup;
+        } finally {
+          try {
+            await invoke("stop_airpressure_info");
+            info("stop_airpressure_info invoked");
+          } catch (e) {
+            error(`Error invoking stop_airpressure_info: ${e}`);
+          }
         }
       }).catch((e) => error(`Error cleaning up airpressure_info: ${e}`));
     };

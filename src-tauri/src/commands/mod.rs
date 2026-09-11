@@ -18,9 +18,54 @@ const CMD_OK: u16 = 0xcafe;
 const CMD_ERR: u16 = 0xdead;
 
 static REQUEST_RESPONSE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static ACTIVE_REALTIME_INFO: OnceLock<Mutex<Option<RealtimeInfoKind>>> = OnceLock::new();
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RealtimeInfoKind {
+  Valve,
+  AirPressure,
+}
 
 fn request_response_lock() -> &'static Mutex<()> {
   REQUEST_RESPONSE_LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn active_realtime_info() -> &'static Mutex<Option<RealtimeInfoKind>> {
+  ACTIVE_REALTIME_INFO.get_or_init(|| Mutex::new(None))
+}
+
+/// Claim the single notification stream owned by the realtime information UI.
+/// Repeated starts for the same stream are idempotent so a remount cannot send
+/// another enable command while the existing stream is still active.
+pub(crate) async fn start_realtime_info(kind: RealtimeInfoKind) -> Result<bool, String> {
+  let mut active = active_realtime_info().lock().await;
+  match *active {
+    None => {
+      *active = Some(kind);
+      Ok(true)
+    }
+    Some(active_kind) if active_kind == kind => Ok(false),
+    Some(active_kind) => Err(format!(
+      "Realtime info stream {active_kind:?} is already active"
+    )),
+  }
+}
+
+/// Release a realtime stream. Returns whether this call owned an active stream.
+pub(crate) async fn stop_realtime_info(kind: RealtimeInfoKind) -> bool {
+  let mut active = active_realtime_info().lock().await;
+  if *active == Some(kind) {
+    *active = None;
+    true
+  } else {
+    false
+  }
+}
+
+/// Clear stream ownership after a disconnect so a later connection can start
+/// realtime updates again.
+pub(crate) async fn reset_realtime_info() {
+  *active_realtime_info().lock().await = None;
 }
 
 async fn send_and_unsubscribe(
@@ -151,7 +196,10 @@ async fn do_request_response(
     }
   };
 
-  if !keep_subscribe {
+  // A failed realtime start must not leave a notification listener behind.
+  // Successful realtime starts intentionally keep the listener alive until
+  // their matching stop command.
+  if !keep_subscribe || result.is_err() {
     transfer
       .unsubscribe()
       .await
@@ -163,7 +211,10 @@ async fn do_request_response(
 
 #[cfg(test)]
 mod tests {
-  use super::send_and_unsubscribe;
+  use super::{
+    RealtimeInfoKind, reset_realtime_info, send_and_unsubscribe, start_realtime_info,
+    stop_realtime_info,
+  };
   use crate::transfer::Transfer;
   use async_trait::async_trait;
   use std::sync::{Arc, Mutex};
@@ -229,5 +280,22 @@ mod tests {
     send_and_unsubscribe(transfer, "stop\r\n").await.unwrap();
 
     assert_eq!(*calls.lock().unwrap(), vec!["send", "unsubscribe"]);
+  }
+
+  #[tokio::test]
+  async fn realtime_info_start_is_idempotent_and_stop_releases_claim() {
+    reset_realtime_info().await;
+
+    assert!(start_realtime_info(RealtimeInfoKind::Valve).await.unwrap());
+    assert!(!start_realtime_info(RealtimeInfoKind::Valve).await.unwrap());
+    assert!(
+      start_realtime_info(RealtimeInfoKind::AirPressure)
+        .await
+        .is_err()
+    );
+    assert!(stop_realtime_info(RealtimeInfoKind::Valve).await);
+    assert!(!stop_realtime_info(RealtimeInfoKind::Valve).await);
+
+    reset_realtime_info().await;
   }
 }

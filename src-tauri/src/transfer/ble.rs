@@ -147,6 +147,7 @@ pub async fn connect(app_handle: tauri::AppHandle, device: BleDevice) -> Result<
       .connect(
         &device.address,
         tauri_plugin_blec::OnDisconnectHandler::from_async(move || async move {
+          crate::commands::reset_realtime_info().await;
           let mut device = disconnect_device;
           device.isconnected = false;
           let _ = disconnect_app_handle.emit("ble_status", device);
