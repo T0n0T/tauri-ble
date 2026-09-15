@@ -61,6 +61,10 @@ To export the Next.js frontend via SSG and build the Tauri application for relea
 pnpm tauri build
 ```
 
+The BLE OTA/DFU handshake and retry behavior is documented in
+[`docs/ota-dfu.md`](docs/ota-dfu.md). Release changes are tracked in
+[`CHANGELOG.md`](CHANGELOG.md).
+
 ### Source structure
 
 Next.js frontend source files are located in `src/` and Tauri Rust application source

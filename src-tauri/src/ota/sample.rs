@@ -37,7 +37,7 @@ pub enum McuDfuState {
   Verify = 4,
   Write = 5,
   Final = 6,
-  Fault = 7,
+  Fault = 8,
 }
 
 impl std::convert::TryFrom<u8> for McuDfuState {
@@ -52,9 +52,23 @@ impl std::convert::TryFrom<u8> for McuDfuState {
       4 => Ok(Self::Verify),
       5 => Ok(Self::Write),
       6 => Ok(Self::Final),
-      7 => Ok(Self::Fault),
-      _ => Ok(Self::Idle), // 默认返回Idle状态
+      8 => Ok(Self::Fault),
+      _ => Err(format!("Unknown MCU DFU state: {value}")),
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::McuDfuState;
+
+  #[test]
+  fn parses_bootloader_states_and_rejects_unknown_values() {
+    assert_eq!(McuDfuState::try_from(0), Ok(McuDfuState::Idle));
+    assert_eq!(McuDfuState::try_from(6), Ok(McuDfuState::Final));
+    assert_eq!(McuDfuState::try_from(8), Ok(McuDfuState::Fault));
+    assert!(McuDfuState::try_from(7).is_err());
+    assert!(McuDfuState::try_from(0xff).is_err());
   }
 }
 
@@ -82,6 +96,7 @@ pub struct SampleOta {
   current_chunk_index: usize,
   mcu_state_sender: watch::Sender<McuDfuState>,
   mcu_state_receiver: watch::Receiver<McuDfuState>,
+  preamble_sent_at: Option<Instant>,
 }
 
 impl SampleOta {
@@ -95,6 +110,7 @@ impl SampleOta {
       current_chunk_index: 0,
       mcu_state_sender: tx,
       mcu_state_receiver: rx,
+      preamble_sent_at: None,
     }
   }
 
@@ -138,7 +154,6 @@ impl SampleOta {
           .await
           .map_err(|e| format!("OTA send failed: {:?}", e))?;
         self.state = DFUState::SendPreamble;
-        tokio::time::sleep(Duration::from_secs(1)).await;
       }
       DFUState::SendPreamble => {
         if self.mcu_state == McuDfuState::Idle {
@@ -148,10 +163,25 @@ impl SampleOta {
             .await
             .map_err(|e| format!("OTA send failed: {:?}", e))?;
           info!("State: SendPreamble -> Preamble sent, waiting for MCU response");
+          self.preamble_sent_at = Some(Instant::now());
           self.state = DFUState::SendTotalBlocks;
         }
       }
       DFUState::SendTotalBlocks => {
+        if self.mcu_state == McuDfuState::Idle
+          && self
+            .preamble_sent_at
+            .map(|sent_at| sent_at.elapsed() >= Duration::from_millis(500))
+            .unwrap_or(true)
+        {
+          self
+            .transfer
+            .send(&DFU_PREAMBLE)
+            .await
+            .map_err(|e| format!("OTA send failed: {:?}", e))?;
+          self.preamble_sent_at = Some(Instant::now());
+          info!("State: SendTotalBlocks -> Retrying DFU preamble");
+        }
         if self.mcu_state == McuDfuState::Prepare {
           info!("State: SendTotalBlocks -> MCU Ready for Total Blocks");
           let total_blocks_bytes = (total_blocks as u32).to_le_bytes();
